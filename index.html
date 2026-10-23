@@ -13,7 +13,6 @@
   <!-- SheetJS for Excel batch import/export (附帶 cdnjs 雙重備援) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script>
-    // 若 cdnjs 載入失敗，動態備援載入 jsdelivr
     if (typeof XLSX === 'undefined') {
       const s = document.createElement('script');
       s.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
@@ -33,9 +32,8 @@
       background-color: #cbd5e1;
       border-radius: 9999px;
     }
-    /* 列印與 PDF 匯出專用樣式 */
     @media print {
-      header, #tabSingle, #tabCompare, #tabStats, #tabBatch, #reportControlBar, #toast {
+      header, #tabSingle, #tabCompare, #tabStats, #tabBatch, #reportControlBar, #toast, #gasDiagnosticPanel {
         display: none !important;
       }
       #tabReport {
@@ -110,7 +108,6 @@
 
     <!-- TAB 1: 單人成績登錄與個人對照表 -->
     <section id="tabSingle" class="block space-y-6">
-      <!-- 單位及個人基本資料輸入 -->
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-6 transition hover:shadow-md">
         <div class="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
           <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -123,21 +120,17 @@
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <!-- 單位選單 (第四大隊 20 個單位) -->
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">所屬分隊 / 單位</label>
             <select id="inputUnit" onchange="updateFormAndCalc()" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:outline-none font-medium">
-              <!-- 動態由 JavaScript 載入 -->
             </select>
           </div>
 
-          <!-- 姓名 -->
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">受測同仁姓名</label>
             <input type="text" id="inputName" value="陳建宏" placeholder="例如：陳建宏" oninput="updateFormAndCalc()" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:outline-none font-medium">
           </div>
 
-          <!-- 測驗期別 / 梯次 (支援文字直接鍵入與快捷下拉) -->
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1 flex items-center justify-between">
               <span>測驗期別 / 梯次</span>
@@ -158,7 +151,6 @@
             </datalist>
           </div>
 
-          <!-- 生理性別 -->
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">生理性別</label>
             <select id="inputGender" onchange="updateFormAndCalc()" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:outline-none font-medium">
@@ -167,13 +159,11 @@
             </select>
           </div>
 
-          <!-- 年齡 -->
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">實際年齡 (歲)</label>
             <input type="number" id="inputAge" value="27" min="18" max="65" oninput="updateFormAndCalc()" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:outline-none font-semibold">
           </div>
 
-          <!-- 身高與體重 -->
           <div class="sm:col-span-2 md:col-span-1 lg:col-span-1">
             <div class="grid grid-cols-2 gap-2">
               <div>
@@ -205,7 +195,6 @@
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <!-- 左側：七項測驗成績輸入表 -->
         <div class="lg:col-span-7 space-y-4">
           <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-6">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
@@ -218,7 +207,7 @@
             </div>
 
             <div class="space-y-3.5">
-              <!-- 1. 立定跳遠 (滿分10分) -->
+              <!-- 1. 立定跳遠 -->
               <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 hover:border-red-300 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div class="flex items-center gap-3">
                   <div class="w-8 h-8 rounded-lg bg-red-100 text-red-700 flex items-center justify-center font-bold text-sm shrink-0">1</div>
@@ -239,7 +228,7 @@
                 </div>
               </div>
 
-              <!-- 2. 後拋擲遠 (滿分15分) -->
+              <!-- 2. 後拋擲遠 -->
               <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 hover:border-red-300 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div class="flex items-center gap-3">
                   <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-sm shrink-0">2</div>
@@ -260,7 +249,7 @@
                 </div>
               </div>
 
-              <!-- 3. 6公尺30秒折返跑 (滿分10分) -->
+              <!-- 3. 6公尺30秒折返跑 -->
               <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 hover:border-red-300 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div class="flex items-center gap-3">
                   <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm shrink-0">3</div>
@@ -281,7 +270,7 @@
                 </div>
               </div>
 
-              <!-- 4. 菱形槓硬舉 (滿分20分) -->
+              <!-- 4. 菱形槓硬舉 -->
               <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 hover:border-red-300 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div class="flex items-center gap-3">
                   <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm shrink-0">4</div>
@@ -302,7 +291,7 @@
                 </div>
               </div>
 
-              <!-- 5. 懸吊屈體 (滿分15分，女性支援屈臂懸垂秒數替代) -->
+              <!-- 5. 懸吊屈體 -->
               <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 hover:border-red-300 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div class="flex items-center gap-3">
                   <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-sm shrink-0">5</div>
@@ -332,7 +321,7 @@
                 </div>
               </div>
 
-              <!-- 6. 負重行走 (滿分10分) -->
+              <!-- 6. 負重行走 -->
               <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 hover:border-red-300 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div class="flex items-center gap-3">
                   <div class="w-8 h-8 rounded-lg bg-orange-100 text-orange-700 flex items-center justify-center font-bold text-sm shrink-0">6</div>
@@ -353,7 +342,7 @@
                 </div>
               </div>
 
-              <!-- 7. 1500公尺跑走 / Beep Test (滿分20分) -->
+              <!-- 7. 1500公尺跑走 -->
               <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 hover:border-red-300 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div class="flex items-center gap-3">
                   <div class="w-8 h-8 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center font-bold text-sm shrink-0">7</div>
@@ -369,14 +358,12 @@
                   </div>
                 </div>
                 <div class="flex items-center gap-3">
-                  <!-- 時間輸入模式 -->
                   <div id="runTimeInputWrapper" class="flex items-center gap-1 w-36">
                     <input type="number" id="t_run_min" value="7" min="3" max="25" oninput="updateFormAndCalc()" placeholder="分" class="w-16 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-right font-semibold">
                     <span class="text-xs text-slate-500">分</span>
                     <input type="number" id="t_run_sec" value="15" min="0" max="59" oninput="updateFormAndCalc()" placeholder="秒" class="w-16 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-right font-semibold">
                     <span class="text-xs text-slate-500">秒</span>
                   </div>
-                  <!-- Beep Test 輸入模式 -->
                   <div id="runBeepInputWrapper" class="hidden w-36">
                     <input type="text" id="t_beep" placeholder="如 5-1" oninput="updateFormAndCalc()" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-sm text-center font-semibold">
                   </div>
@@ -405,7 +392,6 @@
 
         <!-- 右側：個人成績綜合卡片與常模對照雷達圖 -->
         <div class="lg:col-span-5 space-y-5">
-          <!-- 總分卡片 -->
           <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl shadow-lg p-6 relative overflow-hidden">
             <div class="absolute -right-6 -bottom-6 text-slate-700 opacity-20 pointer-events-none">
               <i class="fa-solid fa-shield-halved text-9xl"></i>
@@ -431,7 +417,6 @@
                   <span class="text-5xl font-black tracking-tight text-white" id="cardTotalScore">75</span>
                   <span class="text-slate-400 font-bold">/ 100 總分</span>
                 </div>
-                <!-- 與前次測驗成長對照標籤 -->
                 <div id="progressCompareBadge" class="flex flex-col items-end">
                   <span class="text-[10px] text-slate-400">與前次測驗成長對照</span>
                   <div id="progressDiffPill" class="text-xs font-black px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 flex items-center gap-1 mt-0.5">
@@ -440,7 +425,6 @@
                 </div>
               </div>
 
-              <!-- 常模及格判定進度條 -->
               <div class="mt-4">
                 <div class="flex justify-between text-xs text-slate-300 mb-1">
                   <span>常模門檻達成進度 (現行50分 / 116年起60分)</span>
@@ -451,7 +435,6 @@
                 </div>
               </div>
 
-              <!-- 兩次測驗細項消長矩陣 (有前次資料時自動展開) -->
               <div id="itemDiffContainer" class="mt-4 pt-3 border-t border-slate-700/80 hidden">
                 <div class="flex items-center justify-between text-[11px] text-slate-300 mb-2">
                   <span class="font-bold text-amber-300 flex items-center gap-1">
@@ -460,11 +443,9 @@
                   <span id="prevSessionDateText" class="text-slate-400">基準梯次：-</span>
                 </div>
                 <div id="itemDiffGrid" class="grid grid-cols-4 sm:grid-cols-7 gap-1.5 text-center">
-                  <!-- 動態注入各項消長指標 -->
                 </div>
               </div>
 
-              <!-- 年齡層百分位數預估與均分 -->
               <div class="mt-4 pt-3 border-t border-slate-700/80 grid grid-cols-2 gap-3 text-xs">
                 <div>
                   <span class="text-slate-400 block text-[11px]">同齡常模相對落點</span>
@@ -478,7 +459,7 @@
             </div>
           </div>
 
-          <!-- 七向度雷達圖卡片 (雙軌重疊：本次 vs 前次) -->
+          <!-- 七向度雷達圖卡片 -->
           <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
             <div class="flex justify-between items-center mb-2">
               <h4 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
@@ -494,7 +475,7 @@
             </p>
           </div>
 
-          <!-- 新增：七項體能達成率與弱點條狀分佈 -->
+          <!-- 七項體能達成率與弱點條狀分佈 -->
           <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-3">
             <div class="flex items-center justify-between border-b border-slate-100 pb-2">
               <h4 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
@@ -503,17 +484,15 @@
               <span class="text-[10px] text-slate-400">標準化百分比 (0~100%)</span>
             </div>
             <div id="singleItemRateContainer" class="space-y-2 text-xs">
-              <!-- 動態注入七項達成率進度條 -->
             </div>
           </div>
 
-          <!-- 新增：即時戰術體能診斷與強化處方建議 -->
+          <!-- 戰術體能即時診斷與強化處方建議 -->
           <div class="bg-amber-50/80 border border-amber-200 rounded-2xl p-5">
             <h4 class="text-xs font-bold text-amber-900 flex items-center gap-1.5 mb-2">
               <i class="fa-solid fa-stethoscope text-amber-700"></i> 戰術體能即時診斷與強化處方建議
             </h4>
             <div id="singlePrescriptionBox" class="text-xs text-amber-950 space-y-1.5 leading-relaxed">
-              <!-- 動態生成處方內容 -->
             </div>
           </div>
         </div>
@@ -533,9 +512,7 @@
           </p>
         </div>
 
-        <!-- 選擇列：左邊選同仁，右邊選比較基準 -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
-          <!-- 步驟一：選擇同仁 -->
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
               <span class="w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center text-[11px]">1</span>
@@ -543,18 +520,15 @@
             </label>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <select id="benchmarkTargetPerson" onchange="runBenchmarkComparison()" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold focus:ring-2 focus:ring-red-500 focus:outline-none">
-                <!-- 動態注入同仁名單 -->
               </select>
               <select id="benchmarkPersonSessionFilter" onchange="filterBenchmarkPersonOptions()" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-600 focus:ring-2 focus:ring-red-500 focus:outline-none">
                 <option value="ALL">全部梯次期別</option>
               </select>
             </div>
             <div id="benchmarkPersonSummary" class="mt-2 text-xs text-slate-500">
-              <!-- 人員基本資料摘要 -->
             </div>
           </div>
 
-          <!-- 步驟二：選擇比較基準 (單位 或 年齡層) -->
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
               <span class="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[11px]">2</span>
@@ -570,17 +544,14 @@
               </div>
               <div id="benchmarkTargetWrapper">
                 <select id="benchmarkSubSelect" onchange="runBenchmarkComparison()" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                  <!-- 動態載入單位或年齡 -->
                 </select>
               </div>
             </div>
             <div id="benchmarkTargetSummary" class="mt-2 text-xs text-slate-500">
-              <!-- 基準摘要 -->
             </div>
           </div>
         </div>
 
-        <!-- 比較結果展示區塊 -->
         <div id="benchmarkResultContainer" class="space-y-6">
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div class="bg-red-50/70 border border-red-200 p-4 rounded-xl">
@@ -618,7 +589,6 @@
           </div>
 
           <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <!-- 左側：個人 vs 基準 雙軌雷達圖 -->
             <div class="lg:col-span-5 bg-slate-50/70 p-4 rounded-2xl border border-slate-200 flex flex-col items-center justify-center">
               <div class="w-full flex justify-between items-center mb-2">
                 <h3 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
@@ -641,11 +611,9 @@
               </div>
             </div>
 
-            <!-- 右側：七項指標詳細對比表與智慧診斷 -->
             <div class="lg:col-span-7 space-y-4">
               <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
                 <table class="w-full text-xs text-left" id="benchmarkTable">
-                  <!-- 動態生成七項對照資料列 -->
                 </table>
               </div>
 
@@ -655,7 +623,6 @@
                   戰術體能診斷與強化建議
                 </h4>
                 <div id="benchmarkSummaryNotes" class="text-xs text-amber-950 space-y-1.5 leading-relaxed">
-                  <!-- 動態注入評語 -->
                 </div>
               </div>
             </div>
@@ -686,7 +653,6 @@
               <option value="ALL">全部梯次</option>
             </select>
             <select id="reportPersonSelect" onchange="renderPersonalReport()" class="text-xs bg-white border-2 border-red-500 font-bold text-red-700 rounded-lg px-3 py-2">
-              <!-- 動態載入同仁清單 -->
             </select>
             <button onclick="printPersonalReport()" class="text-xs bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-lg transition shadow-md shadow-red-200 flex items-center gap-2">
               <i class="fa-solid fa-file-pdf"></i> 列印 / 另存為 PDF
@@ -697,7 +663,6 @@
 
       <!-- 可列印之個人 A4 戰術體能報告書本體 -->
       <div id="printablePersonalReport" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8 max-w-5xl mx-auto space-y-6">
-        <!-- 表頭抬頭 -->
         <div class="border-b-2 border-red-700 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div class="flex items-center gap-3.5">
             <div class="w-12 h-12 rounded-xl bg-red-600 text-white flex items-center justify-center text-2xl font-bold shadow-sm">
@@ -715,7 +680,6 @@
           </div>
         </div>
 
-        <!-- 基本個資與體位 -->
         <div class="grid grid-cols-2 sm:grid-cols-6 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
           <div>
             <span class="text-slate-500 block text-[11px]">受測同仁</span>
@@ -743,7 +707,6 @@
           </div>
         </div>
 
-        <!-- 總分判定與排名落點大看板 -->
         <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-4 rounded-xl relative overflow-hidden flex flex-col justify-between">
             <span class="text-xs font-semibold text-slate-400">總實測成績</span>
@@ -784,7 +747,6 @@
           </div>
         </div>
 
-        <!-- 兩欄配置：左側七項實測排名表，右側戰術雷達圖 -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div class="lg:col-span-7 space-y-4">
             <h3 class="text-sm font-bold text-slate-800 flex items-center justify-between border-b pb-2">
@@ -805,13 +767,11 @@
                   </tr>
                 </thead>
                 <tbody id="repItemTableBody" class="divide-y divide-slate-100">
-                  <!-- 動態注入七項資料 -->
                 </tbody>
               </table>
             </div>
           </div>
 
-          <!-- 右側雷達圖 -->
           <div class="lg:col-span-5 bg-slate-50/70 p-4 rounded-xl border border-slate-200 flex flex-col justify-between">
             <div>
               <h3 class="text-sm font-bold text-slate-800 flex items-center justify-between border-b pb-2 mb-2">
@@ -829,18 +789,15 @@
           </div>
         </div>
 
-        <!-- 智能處方與建議 -->
         <div class="bg-amber-50/80 border border-amber-200 p-4 rounded-xl">
           <h4 class="text-xs font-bold text-amber-900 flex items-center gap-1.5 mb-2">
             <i class="fa-solid fa-dumbbell text-amber-700"></i>
             體技教官個人化戰術體能診斷與處方建議
           </h4>
           <div id="repPrescriptionNotes" class="text-xs text-amber-950 space-y-1.5 leading-relaxed">
-            <!-- 動態生成訓練處方 -->
           </div>
         </div>
 
-        <!-- 簽核欄位 -->
         <div class="pt-6 border-t border-slate-200 grid grid-cols-3 gap-6 text-xs text-slate-600">
           <div class="border-b border-dashed border-slate-400 pb-4">
             <span class="text-slate-400 block text-[11px]">受測同仁簽章：</span>
@@ -858,7 +815,7 @@
       </div>
     </section>
 
-    <!-- TAB 4: 常模統計與大隊分析 (支援各單項獨立排序與中位數/標準差計算) -->
+    <!-- TAB 4: 常模統計與大隊分析 -->
     <section id="tabStats" class="hidden space-y-6">
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -892,7 +849,6 @@
           </div>
         </div>
 
-        <!-- 四大常模關鍵指標概覽卡片 -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5">
           <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
             <span class="text-xs font-semibold text-slate-500">篩選總受測人數</span>
@@ -917,7 +873,7 @@
         </div>
       </div>
 
-      <!-- 新增：第四大隊各分隊單項體能分佈與戰力排名圖示模組 -->
+      <!-- 第四大隊各分隊單項體能分佈與戰力排名圖示模組 -->
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3">
           <div>
@@ -944,7 +900,6 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
-          <!-- 分隊單項排名橫向長條圖 -->
           <div class="lg:col-span-8 bg-slate-50 p-4 rounded-xl border border-slate-200">
             <div class="h-80 w-full relative">
               <canvas id="unitRankChart"></canvas>
@@ -956,14 +911,12 @@
             </div>
           </div>
 
-          <!-- 分隊單項前三名與需補強榜單 -->
           <div class="lg:col-span-4 space-y-3">
             <div class="bg-gradient-to-br from-amber-500/10 to-amber-500/5 border border-amber-300/80 rounded-xl p-3.5">
               <span class="text-xs font-bold text-amber-900 flex items-center gap-1.5 mb-2">
                 <i class="fa-solid fa-trophy text-amber-500"></i> 單項表現最優分隊 TOP 3
               </span>
               <div id="unitTop3List" class="space-y-1.5 text-xs">
-                <!-- 動態注入前三名分隊 -->
               </div>
             </div>
 
@@ -972,7 +925,6 @@
                 <i class="fa-solid fa-triangle-exclamation text-rose-500"></i> 建議優先輔導補強分隊
               </span>
               <div id="unitBottom3List" class="space-y-1.5 text-xs">
-                <!-- 動態注入需加強分隊 -->
               </div>
             </div>
           </div>
@@ -989,7 +941,7 @@
         </div>
       </div>
 
-      <!-- 成績總排名名冊表格 (支援七項分別點擊排序) -->
+      <!-- 成績總排名名冊表格 -->
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div class="p-4 border-b border-slate-200 flex flex-wrap justify-between items-center gap-3">
           <div class="flex items-center gap-2">
@@ -1035,7 +987,6 @@
               </tr>
             </thead>
             <tbody id="recordsTableBody" class="divide-y divide-slate-200">
-              <!-- 動態注入同仁資料列 -->
             </tbody>
           </table>
         </div>
@@ -1056,7 +1007,6 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- 步驟一：下載範本 -->
           <div class="p-5 rounded-xl border border-dashed border-slate-300 bg-slate-50/70 flex flex-col justify-between">
             <div>
               <div class="flex items-center gap-2 text-slate-800 font-bold text-sm mb-2">
@@ -1083,7 +1033,6 @@
             </div>
           </div>
 
-          <!-- 步驟二：上傳檔案 -->
           <div class="p-5 rounded-xl border border-dashed border-emerald-300 bg-emerald-50/40 flex flex-col justify-between">
             <div>
               <div class="flex items-center gap-2 text-slate-800 font-bold text-sm mb-2">
@@ -1107,7 +1056,6 @@
           </div>
         </div>
 
-        <!-- 彈出文字貼上批次匯入區塊 -->
         <div id="pasteImportArea" class="hidden mt-4 p-4 rounded-xl border border-slate-300 bg-slate-50">
           <div class="flex justify-between items-center mb-2">
             <span class="text-xs font-bold text-slate-700">直接貼上 Excel 複製的表格文字（包含標題列）：</span>
@@ -1121,7 +1069,7 @@
           </div>
         </div>
 
-        <!-- 第四大隊單位與分隊管理區塊 -->
+        <!-- 第四大隊單位自訂維護 -->
         <div class="mt-8 pt-6 border-t border-slate-200">
           <div class="flex items-center justify-between mb-3">
             <div>
@@ -1151,11 +1099,13 @@
             <div class="space-y-1 w-full md:w-2/3">
               <div class="flex items-center gap-2">
                 <span class="p-2 rounded-lg bg-blue-600 text-white text-sm"><i class="fa-brands fa-google-drive"></i></span>
-                <h4 class="text-sm font-bold text-slate-800">Google Apps Script 雲端試算表串接網址 (正式版 API Endpoint)</h4>
+                <h4 class="text-sm font-bold text-slate-800">Google Apps Script 雲端試算表串接網址 (API Endpoint)</h4>
               </div>
-              <p class="text-xs text-slate-600">已綁定正式版 Google Apps Script 網路應用程式 URL，支援 GitHub Pages 免登入雙向資料庫介接：</p>
+              <p class="text-xs text-slate-600">
+                最新部署版本（已更新為最新 /exec 網址）：
+              </p>
               <div class="flex items-center gap-2 mt-1">
-                <input type="text" id="customGasUrlInput" value="https://script.google.com/macros/s/AKfycby17t3_QCVG1NjQ6GIKXhOYzRy_35yksWfpEWAGplBK8ZW-MxQPbDOSmQqOf7m7vHknng/exec" class="w-full font-mono text-[11px] text-blue-900 bg-white p-2 rounded-lg border border-blue-300 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <input type="text" id="customGasUrlInput" value="https://script.google.com/macros/s/AKfycbwndSYOZDnNs6AevLguAUBe2cGuOLmoq6kBWowUU4tvf1EKKyTHfbSVhY5lGxYlYHEW_w/exec" class="w-full font-mono text-[11px] text-blue-900 bg-white p-2 rounded-lg border border-blue-300 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="https://script.google.com/macros/s/.../exec">
                 <button onclick="saveGasUrlPreference()" class="shrink-0 px-3 py-2 bg-slate-800 text-white rounded-lg text-xs font-semibold hover:bg-slate-900">
                   套用網址
                 </button>
@@ -1174,21 +1124,19 @@
             </div>
           </div>
 
-          <!-- 即時連線診斷資訊面板 (偵測錯誤原因) -->
+          <!-- 即時連線診斷資訊面板 -->
           <div id="gasDiagnosticPanel" class="mt-4 p-4 rounded-xl border border-slate-200 bg-white hidden text-xs space-y-2">
             <div class="flex items-center justify-between font-bold text-slate-800 border-b pb-2">
               <span class="flex items-center gap-2"><i class="fa-solid fa-stethoscope text-blue-600"></i> API 雲端連線詳細診斷報告</span>
               <button onclick="document.getElementById('gasDiagnosticPanel').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i> 關閉</button>
             </div>
             <div id="gasDiagnosticContent" class="space-y-1.5 font-mono text-[11px] text-slate-700">
-              <!-- 動態注入診斷細節 -->
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- 浮動提示訊息 Toast -->
     <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
       <div class="bg-slate-900/95 text-white text-sm px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 border border-slate-700">
         <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
@@ -1198,12 +1146,7 @@
   </main>
 
   <script>
-    /* ==========================================================================
-       1. 官方常模級距資料庫 (精確對照附件二之一至附件二之五)
-       七項滿分：跳遠10, 後拋15, 折返10, 硬舉20, 屈體15, 負重10, 1500m 20 (總分100)
-       ========================================================================== */
     const NORM_TABLES = {
-      // 男性 20-29歲 (附件二之一)
       male_20_29: {
         jump:     [ {score:10, val:260}, {score:9, val:250}, {score:8, val:240}, {score:7, val:230}, {score:6, val:220}, {score:5, val:210}, {score:4, val:205}, {score:3, val:200}, {score:2, val:195}, {score:1, val:190} ],
         throw:    [ {score:15, val:18}, {score:14, val:17}, {score:13, val:16}, {score:12, val:15}, {score:11, val:14}, {score:10, val:13}, {score:9, val:12}, {score:8, val:11}, {score:7, val:10}, {score:6, val:9}, {score:5, val:8}, {score:4, val:7}, {score:3, val:6}, {score:2, val:5}, {score:1, val:4} ],
@@ -1213,7 +1156,6 @@
         carry:    [ {score:10, val:175}, {score:9, val:160}, {score:8, val:145}, {score:7, val:130}, {score:6, val:125}, {score:5, val:120}, {score:4, val:115}, {score:3, val:110}, {score:2, val:105}, {score:1, val:100} ],
         run1500:  [ {score:20, val:340}, {score:19, val:355}, {score:18, val:370}, {score:17, val:385}, {score:16, val:400}, {score:15, val:415}, {score:14, val:430}, {score:13, val:445}, {score:12, val:460}, {score:11, val:470}, {score:10, val:480}, {score:9, val:490}, {score:8, val:500}, {score:7, val:510}, {score:6, val:520}, {score:5, val:530}, {score:4, val:540}, {score:3, val:550}, {score:2, val:560}, {score:1, val:570} ]
       },
-      // 男性 30-39歲 (附件二之二)
       male_30_39: {
         jump:     [ {score:10, val:255}, {score:9, val:245}, {score:8, val:235}, {score:7, val:225}, {score:6, val:215}, {score:5, val:205}, {score:4, val:200}, {score:3, val:195}, {score:2, val:190}, {score:1, val:185} ],
         throw:    [ {score:15, val:17}, {score:14, val:16}, {score:13, val:15}, {score:12, val:14}, {score:11, val:13}, {score:10, val:12}, {score:9, val:11}, {score:8, val:10}, {score:7, val:9}, {score:6, val:8}, {score:5, val:7}, {score:4, val:6}, {score:3, val:5}, {score:2, val:4}, {score:1, val:3} ],
@@ -1223,7 +1165,6 @@
         carry:    [ {score:10, val:170}, {score:9, val:155}, {score:8, val:140}, {score:7, val:125}, {score:6, val:120}, {score:5, val:115}, {score:4, val:110}, {score:3, val:105}, {score:2, val:100}, {score:1, val:95} ],
         run1500:  [ {score:20, val:350}, {score:19, val:365}, {score:18, val:380}, {score:17, val:395}, {score:16, val:410}, {score:15, val:425}, {score:14, val:440}, {score:13, val:455}, {score:12, val:470}, {score:11, val:480}, {score:10, val:490}, {score:9, val:500}, {score:8, val:510}, {score:7, val:520}, {score:6, val:530}, {score:5, val:540}, {score:4, val:550}, {score:3, val:560}, {score:2, val:570}, {score:1, val:580} ]
       },
-      // 男性 40-49歲 (附件二之三)
       male_40_49: {
         jump:     [ {score:10, val:250}, {score:9, val:240}, {score:8, val:230}, {score:7, val:220}, {score:6, val:210}, {score:5, val:200}, {score:4, val:195}, {score:3, val:190}, {score:2, val:185}, {score:1, val:180} ],
         throw:    [ {score:15, val:16}, {score:14, val:15}, {score:13, val:14}, {score:12, val:13}, {score:11, val:12}, {score:10, val:11}, {score:9, val:10}, {score:8, val:9}, {score:7, val:8}, {score:6, val:7}, {score:5, val:6}, {score:4, val:5}, {score:3, val:4}, {score:2, val:3}, {score:1, val:2} ],
@@ -1233,7 +1174,6 @@
         carry:    [ {score:10, val:165}, {score:9, val:150}, {score:8, val:135}, {score:7, val:120}, {score:6, val:115}, {score:5, val:110}, {score:4, val:105}, {score:3, val:100}, {score:2, val:95}, {score:1, val:90} ],
         run1500:  [ {score:20, val:375}, {score:19, val:390}, {score:18, val:405}, {score:17, val:420}, {score:16, val:435}, {score:15, val:450}, {score:14, val:465}, {score:13, val:480}, {score:12, val:495}, {score:11, val:505}, {score:10, val:515}, {score:9, val:525}, {score:8, val:535}, {score:7, val:545}, {score:6, val:555}, {score:5, val:565}, {score:4, val:575}, {score:3, val:585}, {score:2, val:595}, {score:1, val:605} ]
       },
-      // 男性 50歲以上 (附件二之四)
       male_50_plus: {
         jump:     [ {score:10, val:185}, {score:9, val:180}, {score:8, val:175}, {score:7, val:170}, {score:6, val:165}, {score:5, val:160}, {score:4, val:155}, {score:3, val:150}, {score:2, val:145}, {score:1, val:140} ],
         throw:    [ {score:15, val:13}, {score:14, val:12.5}, {score:13, val:12}, {score:12, val:11.5}, {score:11, val:11}, {score:10, val:10.5}, {score:9, val:10}, {score:8, val:9}, {score:7, val:8}, {score:6, val:7}, {score:5, val:6}, {score:4, val:5}, {score:3, val:4}, {score:2, val:3}, {score:1, val:2} ],
@@ -1243,7 +1183,6 @@
         carry:    [ {score:10, val:140}, {score:9, val:120}, {score:8, val:100}, {score:7, val:90}, {score:6, val:80}, {score:5, val:75}, {score:4, val:70}, {score:3, val:65}, {score:2, val:60}, {score:1, val:55} ],
         run1500:  [ {score:20, val:515}, {score:19, val:530}, {score:18, val:545}, {score:17, val:560}, {score:16, val:575}, {score:15, val:590}, {score:14, val:605}, {score:13, val:620}, {score:12, val:635}, {score:11, val:640}, {score:10, val:645}, {score:9, val:650}, {score:8, val:655}, {score:7, val:660}, {score:6, val:665}, {score:5, val:670}, {score:4, val:675}, {score:3, val:680}, {score:2, val:685}, {score:1, val:690} ]
       },
-      // 女性不分年齡 (附件二之五)
       female: {
         jump:     [ {score:10, val:200}, {score:9, val:190}, {score:8, val:180}, {score:7, val:170}, {score:6, val:160}, {score:5, val:155}, {score:4, val:150}, {score:3, val:145}, {score:2, val:140}, {score:1, val:135} ],
         throw:    [ {score:15, val:13}, {score:14, val:12}, {score:13, val:11}, {score:12, val:10}, {score:11, val:9}, {score:10, val:8.5}, {score:9, val:8.0}, {score:8, val:7.5}, {score:7, val:7.0}, {score:6, val:6.5}, {score:5, val:6.0}, {score:4, val:5.5}, {score:3, val:5.0}, {score:2, val:4.5}, {score:1, val:3.0} ],
@@ -1256,7 +1195,6 @@
       }
     };
 
-    // 附件五 Beep Test 階級換算表
     const BEEP_TEST_TABLE = {
       male_20_29: { "10-2":20, "9-6":19, "8-10":18, "8-4":17, "7-9":16, "7-4":15, "6-10":14, "6-6":13, "6-2":12, "5-9":11, "5-7":10, "5-5":9, "5-3":8, "5-1":7, "4-8":6, "4-7":5, "4-5":4, "4-4":3, "4-3":2, "4-2":1 },
       male_30_39: { "9-8":20, "9-1":19, "8-6":18, "7-10":17, "7-6":16, "7-1":15, "6-7":14, "6-3":13, "5-9":12, "5-7":11, "5-5":10, "5-3":9, "5-1":8, "4-8":7, "4-7":6, "4-5":5, "4-4":4, "4-2":3, "4-1":2, "3-8":1 },
@@ -1265,7 +1203,6 @@
       female: { "6-5":20, "6-1":19, "5-7":18, "5-4":17, "5-1":16, "4-8":15, "4-5":14, "4-3":13, "4-1":12, "3-7":11, "3-6":9, "3-5":7, "3-4":5, "3-3":3, "3-2":2, "3-1":1 }
     };
 
-    // 第四大隊預設 20 個單位名冊 (16 個分隊、3 個中隊、第四大隊部)
     const DEFAULT_UNITS = [
       "第四大隊大同中隊", "第四大隊大同分隊", "第四大隊建成分隊", "第四大隊延平分隊",
       "第四大隊士林中隊", "第四大隊劍潭分隊", "第四大隊後港分隊", "第四大隊福安分隊", 
@@ -1282,19 +1219,24 @@
       "116年第1次", "116年第2次", "116年第3次"
     ];
 
-    // Google Apps Script (GAS) 正式版 Web App 端點網址
-    let GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycby17t3_QCVG1NjQ6GIKXhOYzRy_35yksWfpEWAGplBK8ZW-MxQPbDOSmQqOf7m7vHknng/exec";
+    // 更新為您最新的正式版 Web App 端點網址
+    let GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbwndSYOZDnNs6AevLguAUBe2cGuOLmoq6kBWowUU4tvf1EKKyTHfbSVhY5lGxYlYHEW_w/exec";
 
     function getGasUrl() {
       const input = document.getElementById('customGasUrlInput');
-      if (input && input.value.trim()) {
-        return input.value.trim();
+      let url = input && input.value.trim() ? input.value.trim() : GAS_ENDPOINT_URL;
+      if (url.includes('/edit') || url.includes('projects/')) {
+        showToast("⚠️ 注意：您輸入的是編輯網址 (/edit)，請改用部署產生的 /exec 網址！", "warning");
       }
-      return GAS_ENDPOINT_URL;
+      return url;
     }
 
     function saveGasUrlPreference() {
       const url = getGasUrl();
+      if (url.includes('/edit') || url.includes('projects/')) {
+        showToast("⚠️ 請注意：前端串接必須使用「/exec」結尾的部署網址！", "warning");
+        return;
+      }
       GAS_ENDPOINT_URL = url;
       showToast("已更新 Google Apps Script 端點網址！", "success");
       testGASConnection();
@@ -1302,18 +1244,15 @@
 
     let currentSessions = [...DEFAULT_SESSIONS];
     let currentUnits = [...DEFAULT_UNITS];
-    let firefighterRecords = []; // 記憶體資料庫
+    let firefighterRecords = [];
     let radarChartInstance = null;
     let barChartInstance = null;
     let benchmarkRadarInstance = null;
     let reportRadarInstance = null;
-    let unitRankChartInstance = null; // 新增：分隊單項評比圖表實例
+    let unitRankChartInstance = null;
     let currentSortColumn = 'totalScore';
     let isSortDescending = true;
 
-    /* ==========================================================================
-       2. 常模分組與計分運算邏輯
-       ========================================================================== */
     function getNormGroupKey(gender, age) {
       if (gender === 'female' || gender === '女') return 'female';
       const a = parseInt(age, 10);
@@ -1416,7 +1355,6 @@
       };
     }
 
-    // 尋找同仁前一次測驗紀錄
     function findPreviousRecord(name, unit, currentSession, currentId) {
       if (!name || name === '未填寫') return null;
       const history = firefighterRecords.filter(r => r.name === name && r.unit === unit && r.id !== currentId && r.session !== currentSession);
@@ -1424,9 +1362,6 @@
       return history[history.length - 1];
     }
 
-    /* ==========================================================================
-       3. 介面互動與分頁切換控制
-       ========================================================================== */
     function switchTab(tabId) {
       document.getElementById('tabSingle').classList.add('hidden');
       document.getElementById('tabCompare').classList.add('hidden');
@@ -1594,7 +1529,6 @@
 
       const computed = computeFullRecord(raw);
 
-      // 更新個別得分
       document.getElementById('score_jump').textContent = computed.scores.jump;
       document.getElementById('score_throw').textContent = computed.scores.throw;
       document.getElementById('score_shuttle').textContent = computed.scores.shuttle;
@@ -1603,7 +1537,6 @@
       document.getElementById('score_carry').textContent = computed.scores.carry;
       document.getElementById('score_run').textContent = computed.scores.run;
 
-      // 更新右側總分卡片
       document.getElementById('cardName').textContent = `${computed.name} 同仁`;
       document.getElementById('cardSubtitle').textContent = `${computed.unit} (${computed.age}歲 ${computed.gender === 'male' ? '男性' : '女性'})`;
       document.getElementById('cardSessionTag').textContent = computed.session;
@@ -1628,11 +1561,10 @@
       renderProgressComparison(computed, prevRecord);
       evaluatePeerPosition(computed);
       renderRadarChart(computed, prevRecord);
-      renderSingleWeaknessAndRates(computed); // 新增：渲染個人單項達成率條
-      renderSinglePrescription(computed);     // 新增：渲染個人體能診斷與處方
+      renderSingleWeaknessAndRates(computed);
+      renderSinglePrescription(computed);
     }
 
-    // 新增：渲染個人單項達成率與弱點標籤
     function renderSingleWeaknessAndRates(person) {
       const container = document.getElementById('singleItemRateContainer');
       if (!container) return;
@@ -1676,7 +1608,6 @@
       }).join('');
     }
 
-    // 新增：個人測驗即時處方建議
     function renderSinglePrescription(person) {
       const container = document.getElementById('singlePrescriptionBox');
       if (!container) return;
@@ -1919,9 +1850,6 @@
       });
     }
 
-    /* ==========================================================================
-       4. 個人 vs 單位 / 年齡層基準對照分析模組
-       ========================================================================== */
     function handleBenchmarkTypeChange() {
       const type = document.getElementById('benchmarkTypeSelect').value;
       const wrapper = document.getElementById('benchmarkTargetWrapper');
@@ -2231,20 +2159,15 @@
       summaryBox.innerHTML = notes.map(n => `<p>• ${n}</p>`).join('');
     }
 
-    /* ==========================================================================
-       5. 儲存與大隊常模統計分析 (支援單項排序與排名計算)
-       ========================================================================== */
     function saveCurrentRecord() {
       const record = saveCurrentRecordDataOnly();
       if (!record) return;
 
-      // 觸發背景非同步同步至 Google 試算表
       syncSingleRecordToGAS(record);
       renderStatsTable();
       updateFormAndCalc();
     }
 
-    // 僅儲存至本機名冊資料庫（供 submitFitnessData 呼叫，避免重複上傳）
     function saveCurrentRecordDataOnly() {
       const name = document.getElementById('inputName').value.trim();
       if (!name || name === '未填寫') {
@@ -2402,7 +2325,7 @@
       document.getElementById('statCardPassRate').textContent = `${passRate}%`;
       document.getElementById('statCardPassCount').textContent = `合格 ${passCount} / 未達標 ${count - passCount}`;
 
-      renderUnitRankChart(); // 同步重繪分隊單項評比圖
+      renderUnitRankChart();
       const tbody = document.getElementById('recordsTableBody');
       tbody.innerHTML = list.map((r, index) => {
         const rank = index + 1;
@@ -2524,9 +2447,6 @@
       });
     }
 
-    /* ==========================================================================
-       新增：第四大隊轄屬分隊各單項體能橫向評比與分佈圖
-       ========================================================================== */
     function renderUnitRankChart() {
       const canvas = document.getElementById('unitRankChart');
       if (!canvas) return;
@@ -2534,7 +2454,6 @@
       const selectedItem = document.getElementById('unitRankItemSelect') ? document.getElementById('unitRankItemSelect').value : 'totalScore';
       const sessionFilter = document.getElementById('statsFilterSession') ? document.getElementById('statsFilterSession').value : 'ALL';
 
-      // 依當前篩選期別取得受測名冊
       const pool = sessionFilter === 'ALL' ? firefighterRecords : firefighterRecords.filter(r => r.session === sessionFilter);
 
       const itemConfig = {
@@ -2550,7 +2469,6 @@
 
       const cfg = itemConfig[selectedItem] || itemConfig.totalScore;
 
-      // 統計全大隊基準平均
       let grandAvg = 0;
       if (pool.length > 0) {
         const sumAll = pool.reduce((acc, r) => acc + (selectedItem === 'totalScore' ? r.totalScore : r.scores[selectedItem]), 0);
@@ -2559,7 +2477,6 @@
       const benchText = document.getElementById('unitRankBenchmarkText');
       if (benchText) benchText.textContent = `全大隊基準平均：${grandAvg} ${cfg.unit}`;
 
-      // 針對第四大隊各分隊進行聚合運算
       const unitStats = currentUnits.map(unit => {
         const uRecords = pool.filter(r => r.unit === unit);
         if (uRecords.length === 0) {
@@ -2567,21 +2484,19 @@
         }
         const sum = uRecords.reduce((acc, r) => acc + (selectedItem === 'totalScore' ? r.totalScore : r.scores[selectedItem]), 0);
         return {
-          unit: unit.replace("第四大隊", ""), // 簡化標籤以利在圖表展示
+          unit: unit.replace("第四大隊", ""),
           fullName: unit,
           avg: parseFloat((sum / uRecords.length).toFixed(1)),
           count: uRecords.length
         };
       });
 
-      // 依平均分數由高至低排序
       unitStats.sort((a, b) => b.avg - a.avg);
 
       const labels = unitStats.map(u => u.unit);
       const dataVals = unitStats.map(u => u.avg);
       const bgColors = unitStats.map(u => u.avg >= grandAvg ? 'rgba(16, 185, 129, 0.8)' : 'rgba(245, 158, 11, 0.8)');
 
-      // 注入排行榜 TOP 3 與需加強分隊名單
       const top3Container = document.getElementById('unitTop3List');
       const bottom3Container = document.getElementById('unitBottom3List');
 
@@ -2662,9 +2577,6 @@
       });
     }
 
-    /* ==========================================================================
-       6. 個人專屬戰術體能評估報告與 PDF 匯出模組
-       ========================================================================== */
     function populateReportFilters() {
       const uSelect = document.getElementById('reportFilterUnit');
       const sSelect = document.getElementById('reportFilterSession');
@@ -2941,9 +2853,6 @@
       window.print();
     }
 
-    /* ==========================================================================
-       7. Excel 批次作業與 20 單位名冊維護 (含原生 Blob 與 UTF-8 CSV 雙軌下載)
-       ========================================================================== */
     const BATCH_TEMPLATE_ROWS = [
       {
         "單位": "第四大隊大同分隊",
@@ -2995,7 +2904,6 @@
       }
     ];
 
-    // 通用 Blob + Data URI 雙備援觸發下載函式（免疫 iframe 與瀏覽器安全性阻擋）
     function triggerBlobDownload(blob, filename) {
       try {
         const url = window.URL.createObjectURL(blob);
@@ -3025,7 +2933,6 @@
       }
     }
 
-    // 產生標準 UTF-8 含 BOM 的 CSV 檔案（保證 Excel 開啟絕不亂碼）
     function generateUTF8CSV(dataList) {
       if (!dataList || dataList.length === 0) return "";
       const headers = Object.keys(dataList[0]);
@@ -3042,11 +2949,9 @@
         csvLines.push(line);
       });
 
-      // \uFEFF 為 UTF-8 BOM 字元
       return "\uFEFF" + csvLines.join("\r\n");
     }
 
-    // 新增：複製制式範本至剪貼簿
     function copyTemplateDataToClipboard() {
       const headers = Object.keys(BATCH_TEMPLATE_ROWS[0]);
       let tsv = headers.join("\t") + "\n";
@@ -3083,7 +2988,6 @@
           showToast("資料列數過少，請包含標題列與資料！", "warning");
           return;
         }
-        // 判斷分隔符 (Tab 或逗號)
         const delimiter = lines[0].includes("\t") ? "\t" : ",";
         const headers = lines[0].split(delimiter).map(h => h.trim().replace(/^["']|["']$/g, ''));
         const rows = [];
@@ -3104,7 +3008,6 @@
       try {
         const filenameBase = "第四大隊消防體能測驗批次匯入範本";
 
-        // 若使用者指定 CSV，或目前環境 SheetJS 尚未就緒，自動以 CSV 格式下載
         if (format === 'csv' || typeof XLSX === 'undefined') {
           const csvContent = generateUTF8CSV(BATCH_TEMPLATE_ROWS);
           const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -3113,7 +3016,6 @@
           return;
         }
 
-        // 正常 XLSX 流程：採用 ArrayBuffer + Blob 封裝下載，提升相容性
         const ws = XLSX.utils.json_to_sheet(BATCH_TEMPLATE_ROWS);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "體測批次匯入範本");
@@ -3136,7 +3038,6 @@
       }
     }
 
-    // 原生純 JS 解析 CSV 輔助函式（不依賴任何外部庫）
     function parseCSVToObjects(text) {
       const lines = text.split(/\r\n|\n/).filter(line => line.trim().length > 0);
       if (lines.length < 2) return [];
@@ -3165,7 +3066,6 @@
         return result;
       }
 
-      // 移除 BOM
       let firstLine = lines[0];
       if (firstLine.charCodeAt(0) === 0xFEFF) firstLine = firstLine.substring(1);
       const headers = parseLine(firstLine);
@@ -3192,7 +3092,6 @@
 
       const reader = new FileReader();
 
-      // CSV 專屬純文字讀取（即使無 SheetJS 也能 100% 解析）
       if (isCsv) {
         reader.onload = function(e) {
           try {
@@ -3209,7 +3108,6 @@
         return;
       }
 
-      // XLSX 讀取流程
       reader.onload = function(e) {
         try {
           if (typeof XLSX === 'undefined') {
@@ -3229,7 +3127,6 @@
       reader.readAsArrayBuffer(file);
     }
 
-    // 統一處理批次匯入物件陣列
     function processImportedRows(rows) {
       if (!rows || rows.length === 0) {
         showToast("檔案中無有效資料列！", "warning");
@@ -3348,7 +3245,6 @@
         triggerBlobDownload(blob, `${filenameBase}.xlsx`);
         showToast("已成功匯出 Excel 報表！", "success");
       } catch (err) {
-        // 降級以標準 UTF-8 CSV 匯出
         const csvContent = generateUTF8CSV(exportData);
         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
         triggerBlobDownload(blob, `${filenameBase}.csv`);
@@ -3481,12 +3377,6 @@
       showToast('已清空輸入欄位。', 'info');
     }
 
-    /* ==========================================================================
-       8. Google Apps Script (GAS) 雲端 API 串接模組
-       支援 GitHub Pages 跨域串接 (支援標準 Fetch 與 JSONP 雙軌自動降級備援)
-       ========================================================================== */
-    
-    // JSONP 輔助呼叫函式：完全不受瀏覽器 CORS 跨域限制
     function fetchGASViaJSONP(urlWithParams) {
       return new Promise((resolve, reject) => {
         const callbackName = 'gas_callback_' + Math.round(100000 * Math.random());
@@ -3525,17 +3415,35 @@
       const diagPanel = document.getElementById('gasDiagnosticPanel');
       const diagContent = document.getElementById('gasDiagnosticContent');
 
+      if (targetUrl.includes('/edit') || targetUrl.includes('projects/')) {
+        if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-rose-500 inline-block";
+        showToast("錯誤：您填入的是專案編輯網址，請更換為 /exec 網址！", "warning");
+        if (diagPanel && diagContent) {
+          diagContent.innerHTML = `
+            <span class="text-rose-600 font-bold">❌ 網址格式錯誤：</span><br>
+            您目前填寫的網址：<code>${targetUrl}</code><br><br>
+            <b>解決方法：</b><br>
+            1. 請至您的專案編輯器<br>
+            2. 點擊右上角藍色按鈕<b>「部署」→「管理部署作業」</b><br>
+            3. 複製<b>網頁應用程式 (Web App)</b> 網址（結尾一定是 <code class="bg-slate-200 px-1 py-0.5 rounded text-red-600 font-bold">/exec</code>）<br>
+            4. 貼回系統輸入框並點擊「套用網址」。
+          `;
+          diagPanel.classList.remove("hidden");
+        }
+        return;
+      }
+
       showToast("正在診斷 Google Apps Script 連線狀態...", "info");
       if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 inline-block animate-ping";
 
       let diagLog = [];
-      diagLog.push(`[${new Date().toLocaleTimeString()}] 開始檢測端點: ${targetUrl}`);
+      diagLog.push(`[${new Date().toLocaleTimeString()}] 開始檢測端點:<br><code class="break-all text-blue-700">${targetUrl}</code>`);
 
       try {
         let res = null;
-        let fetchSuccess = false;
+        let isHtmlResponse = false;
 
-        // 測試 1: 標準 Fetch (Simple CORS GET, 不帶自訂 Header)
+        // 通道 1: Fetch
         try {
           diagLog.push("通道 1 [Fetch]: 發送 GET 請求 (redirect: follow)...");
           const resp = await fetch(`${targetUrl}?action=ping&_t=${Date.now()}`, {
@@ -3544,19 +3452,30 @@
             cache: "no-store"
           });
           diagLog.push(`通道 1 回應狀態碼: HTTP ${resp.status} ${resp.statusText}`);
-          if (resp.ok) {
-            res = await resp.json();
-            fetchSuccess = true;
-            diagLog.push("通道 1 成功解析 JSON 回應！");
+          
+          const rawText = await resp.text();
+          if (rawText.trim().startsWith("<") || rawText.includes("<!DOCTYPE") || rawText.includes("<html")) {
+            isHtmlResponse = true;
+            diagLog.push(`<span class="text-rose-600 font-bold">⚠️ 通道 1 警示: Google 回傳了 HTML 網頁內容，而非 JSON 資料！</span>`);
+            if (rawText.includes("accounts.google.com") || rawText.includes("Sign in") || rawText.includes("登入")) {
+              diagLog.push(`<span class="text-rose-600 font-semibold">• 原因判定：Google 要求登入帳號。表示 Apps Script 部署設定中，「誰可以存取」尚未生效為「任何人 (Anyone)」，或者「執行身分」沒有設為「我 (Me)」。</span>`);
+            } else {
+              diagLog.push(`• 回傳前 200 字元預覽: <code class="text-[10px] bg-slate-100 p-1 block">${rawText.slice(0, 200).replace(/</g, '&lt;')}...</code>`);
+            }
           } else {
-            diagLog.push(`通道 1 伺服器回傳非 200 狀態: ${resp.status}`);
+            try {
+              res = JSON.parse(rawText);
+              diagLog.push("通道 1 成功解析 JSON 回應！");
+            } catch (pErr) {
+              diagLog.push(`通道 1 JSON 解析失敗: ${pErr.message}`);
+            }
           }
         } catch (fetchErr) {
-          diagLog.push(`通道 1 Fetch 受限 (常見於 CORS 轉導或登入跳轉): ${fetchErr.message}`);
+          diagLog.push(`通道 1 Fetch 受限: ${fetchErr.message}`);
         }
 
-        // 測試 2: JSONP 備援通道
-        if (!res) {
+        // 通道 2: JSONP 備援
+        if (!res && !isHtmlResponse) {
           diagLog.push("通道 2 [JSONP]: 啟動動態 script 標籤降級連線...");
           res = await fetchGASViaJSONP(`${targetUrl}?action=ping`);
           diagLog.push("通道 2 JSONP 成功接收回呼資料！");
@@ -3566,10 +3485,12 @@
           if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 inline-block";
           diagLog.push(`<span class="text-amber-600 font-bold">⚠️ 後端警示: ${res.message}</span>`);
           showToast(res.message, "warning");
-        } else {
+        } else if (res && (res.status === 'ok' || res.message)) {
           if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block";
           diagLog.push(`<span class="text-emerald-600 font-bold">✅ 連線成功！${res.message || "試算表連接就緒"}</span>`);
           showToast(res.message || "Google Apps Script 雲端連線正常，試算表連接就緒！", "success");
+        } else {
+          throw new Error(isHtmlResponse ? "Google 服務要求登入或回傳非 JSON 內容" : "未收到有效回應");
         }
       } catch (err) {
         console.warn("GAS Ping Exception:", err);
@@ -3577,9 +3498,11 @@
         diagLog.push(`<span class="text-rose-600 font-bold">❌ 連線失敗: ${err.message}</span>`);
         diagLog.push(`<div class="mt-2 p-2 bg-slate-100 rounded text-slate-600">
           <b>排除步驟建議：</b><br>
-          1. 請嘗試以<b>瀏覽器無痕視窗 (Incognito)</b> 開啟網頁，避免多重 Google 帳號衝突。<br>
-          2. <a href="${targetUrl}?action=ping" target="_blank" class="text-blue-600 underline font-bold">點此直接在瀏覽器新分頁打開 API 網址</a>，確認是否出現 Google 登入畫面（若是，代表權限尚未設為任何人）。<br>
-          3. 確認 Code.gs 中的 SPREADSHEET_ID 是否已填妥試算表 ID。
+          1. <b>關鍵檢查</b>：在 Apps Script「管理部署作業」中，請確認：<br>
+             • <b>執行身分 (Execute as)</b>：選「<b>我 (Me)</b>」<br>
+             • <b>誰可以存取 (Who has access)</b>：選「<b>任何人 (Anyone)</b>」<br>
+          2. 在 Apps Script 編輯器上方，函式下拉選 <b>testRun</b> 並點擊一次「<b>執行 (Run)</b>」，允許 Google 權限。<br>
+          3. 修改後請務必點「管理部署作業」編輯，<b>版本選「新版本」</b>重新部署！
         </div>`);
         showToast("連線未成功，已開啟下方詳細診斷報告！", "warning");
       }
@@ -3590,7 +3513,6 @@
       }
     }
 
-    // 從 Google Apps Script 拉取所有同仁測驗資料 (GET，支援雙軌跨域)
     async function syncDataFromGAS() {
       const dot = document.getElementById('gasStatusDot');
       const targetUrl = getGasUrl();
@@ -3599,7 +3521,6 @@
 
       try {
         let data = null;
-        // 第一軌：嘗試標準 fetch (Simple CORS, no custom headers)
         try {
           const resp = await fetch(`${targetUrl}?action=getAll&_t=${Date.now()}`, {
             method: "GET",
@@ -3607,13 +3528,15 @@
             cache: "no-store"
           });
           if (resp.ok) {
-            data = await resp.json();
+            const txt = await resp.text();
+            if (!txt.trim().startsWith("<")) {
+              data = JSON.parse(txt);
+            }
           }
         } catch (fetchErr) {
           console.warn("標準 fetch 讀取失敗，改採第二軌 JSONP 跨域通道...", fetchErr);
         }
 
-        // 第二軌：JSONP 備援
         if (!data) {
           data = await fetchGASViaJSONP(`${targetUrl}?action=getAll`);
         }
@@ -3679,12 +3602,10 @@
         console.error("GAS Fetch Error:", err);
         if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-red-400 inline-block";
         showToast("雲端讀取失敗：" + (err.message || "請檢查 Apps Script 設定與權限"), "warning");
-        // 自動執行診斷並展示診斷面板
         testGASConnection();
       }
     }
 
-    // 將單筆測驗成績同步傳送至 GAS 雲端 (POST)
     async function syncSingleRecordToGAS(record) {
       const targetUrl = getGasUrl();
       try {
@@ -3703,7 +3624,6 @@
       }
     }
 
-    // 點擊「送出成績至試算表」按鈕時執行的送出函式
     async function submitFitnessData() {
       const submitBtn = document.getElementById("submitBtn");
       if (submitBtn) {
@@ -3754,150 +3674,4 @@
         progress = diff > 0 ? `+${diff}分` : (diff < 0 ? `${diff}分` : "持平");
       }
 
-      const evaluation = record.isPassed ? "合格" : "未達標";
-
-      const payload = {
-        action: "saveOne",
-        rank: "",
-        unit: unit,
-        name: name,
-        period: period,
-        gender: gender,
-        age: age,
-        bmi: bmi,
-        jumpDistance: jumpDistance,
-        jumpScore: jumpScore,
-        throwDistance: throwDistance,
-        throwScore: throwScore,
-        shuttleRun: shuttleRun,
-        shuttleScore: shuttleScore,
-        deadlift: deadlift,
-        deadliftScore: deadliftScore,
-        pullUp: pullUp,
-        pullUpScore: pullUpScore,
-        farmersWalk: farmersWalk,
-        farmersWalkScore: farmersWalkScore,
-        run1500mTime: run1500mTime,
-        runSeconds: record.runSeconds,
-        run1500mScore: run1500mScore,
-        totalScore: totalScore,
-        progress: progress,
-        evaluation: evaluation
-      };
-
-      try {
-        const targetUrl = getGasUrl();
-        await fetch(targetUrl, {
-          method: "POST",
-          mode: "no-cors",
-          headers: {
-            "Content-Type": "text/plain;charset=utf-8"
-          },
-          body: JSON.stringify(payload)
-        });
-
-        showToast("✅ 成績已成功儲存並同步至 Google 試算表！", "success");
-        renderStatsTable();
-        updateFormAndCalc();
-      } catch (err) {
-        console.error("上傳失敗：", err);
-        showToast("❌ 上傳失敗，請檢查網路連線或 Apps Script 部署狀態。", "warning");
-      } finally {
-        if (submitBtn) {
-          submitBtn.disabled = false;
-          submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane mr-1"></i> 送出成績至試算表';
-        }
-      }
-    }
-
-    // 將目前記憶體資料庫全數推送到 Google Apps Script (POST，雙層降級防禦)
-    async function pushAllDataToGAS() {
-      if (firefighterRecords.length === 0) {
-        showToast("目前本機尚無任何測驗資料可同步！", "warning");
-        return;
-      }
-
-      showToast(`正在推送全數 ${firefighterRecords.length} 筆資料至 Google 試算表...`, "info");
-      const dot = document.getElementById('gasStatusDot');
-      const targetUrl = getGasUrl();
-      if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 inline-block animate-pulse";
-
-      try {
-        const bodyContent = JSON.stringify({
-          action: "syncAll",
-          records: firefighterRecords
-        });
-
-        try {
-          await fetch(targetUrl, {
-            method: "POST",
-            redirect: "follow",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: bodyContent
-          });
-        } catch (corsErr) {
-          // 降級 no-cors 模式確保發出
-          await fetch(targetUrl, {
-            method: "POST",
-            mode: "no-cors",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: bodyContent
-          });
-        }
-
-        if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block";
-        showToast(`同步指令已送出！${firefighterRecords.length} 筆名冊已全量備份至 Google 試算表。`, "success");
-      } catch (err) {
-        console.error("GAS Push Error:", err);
-        if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-red-400 inline-block";
-        showToast("同步過程發生異常，請檢查網路連線或稍後再試。", "warning");
-      }
-    }
-
-    function fillSampleRecord() {
-      document.getElementById('inputName').value = '陳建宏';
-      document.getElementById('inputUnit').value = '第四大隊劍潭分隊';
-      document.getElementById('inputSession').value = '115年上半年';
-      document.getElementById('inputGender').value = 'male';
-      document.getElementById('inputAge').value = 27;
-      document.getElementById('inputHeight').value = 178;
-      document.getElementById('inputWeight').value = 74;
-      document.getElementById('t_jump').value = 245;
-      document.getElementById('t_throw').value = 14.5;
-      document.getElementById('t_shuttle').value = 14;
-      document.getElementById('t_deadlift').value = 135;
-      document.getElementById('t_hang').value = 12;
-      document.getElementById('t_carry').value = 145;
-      document.getElementById('t_run_min').value = 7;
-      document.getElementById('t_run_sec').value = 15;
-      calculateBMI();
-      updateFormAndCalc();
-      showToast('已帶入陳建宏同仁示範成績！', 'success');
-    }
-
-    function showToast(msg, type = 'success') {
-      const toast = document.getElementById('toast');
-      const toastMsg = document.getElementById('toastMsg');
-      const toastIcon = document.getElementById('toastIcon');
-
-      toastMsg.textContent = msg;
-      if (type === 'success') toastIcon.className = "fa-solid fa-circle-check text-emerald-400 text-lg";
-      else if (type === 'warning') toastIcon.className = "fa-solid fa-triangle-exclamation text-amber-400 text-lg";
-      else toastIcon.className = "fa-solid fa-circle-info text-blue-400 text-lg";
-
-      toast.classList.remove('translate-y-20', 'opacity-0');
-      setTimeout(() => {
-        toast.classList.add('translate-y-20', 'opacity-0');
-      }, 3000);
-    }
-
-    window.onload = function() {
-      populateUnitDropdowns();
-      calculateBMI();
-      loadSample400Data();
-      updateFormAndCalc();
-      switchTab('single');
-    };
-  </script>
-</body>
-</html>
+      const evaluation = record.isPassed
