@@ -10,8 +10,16 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- Chart.js for Radar & Bar charts -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- SheetJS for Excel batch import/export -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- SheetJS for Excel batch import/export (附帶 cdnjs 雙重備援) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script>
+    // 若 cdnjs 載入失敗，動態備援載入 jsdelivr
+    if (typeof XLSX === 'undefined') {
+      const s = document.createElement('script');
+      s.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+      document.head.appendChild(s);
+    }
+  </script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
     body {
@@ -485,6 +493,29 @@
               紅線：個人實測項目達成率(%)；灰虛線：同齡組平均水準
             </p>
           </div>
+
+          <!-- 新增：七項體能達成率與弱點條狀分佈 -->
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h4 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <i class="fa-solid fa-chart-simple text-amber-500"></i> 七項體能弱點與達成率分析
+              </h4>
+              <span class="text-[10px] text-slate-400">標準化百分比 (0~100%)</span>
+            </div>
+            <div id="singleItemRateContainer" class="space-y-2 text-xs">
+              <!-- 動態注入七項達成率進度條 -->
+            </div>
+          </div>
+
+          <!-- 新增：即時戰術體能診斷與強化處方建議 -->
+          <div class="bg-amber-50/80 border border-amber-200 rounded-2xl p-5">
+            <h4 class="text-xs font-bold text-amber-900 flex items-center gap-1.5 mb-2">
+              <i class="fa-solid fa-stethoscope text-amber-700"></i> 戰術體能即時診斷與強化處方建議
+            </h4>
+            <div id="singlePrescriptionBox" class="text-xs text-amber-950 space-y-1.5 leading-relaxed">
+              <!-- 動態生成處方內容 -->
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -886,6 +917,68 @@
         </div>
       </div>
 
+      <!-- 新增：第四大隊各分隊單項體能分佈與戰力排名圖示模組 -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div>
+            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-ranking-star text-amber-500"></i> 各分隊單項體能分佈與戰力排名評比
+            </h3>
+            <p class="text-xs text-slate-500 mt-0.5">
+              橫向對照第四大隊轄屬 16 個分隊、3 個中隊及大隊部在指定項目的平均表現與排名順序
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-bold text-slate-600">評比單項：</label>
+            <select id="unitRankItemSelect" onchange="renderUnitRankChart()" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 font-bold text-red-700 focus:ring-2 focus:ring-red-500 focus:outline-none">
+              <option value="totalScore">總合成績 (滿分100分)</option>
+              <option value="jump">1. 立定跳遠 (滿分10分)</option>
+              <option value="throw">2. 後拋擲遠 (滿分15分)</option>
+              <option value="shuttle">3. 6m30s折返跑 (滿分10分)</option>
+              <option value="deadlift">4. 菱形槓硬舉 (滿分20分)</option>
+              <option value="hang">5. 懸吊屈體/懸垂 (滿分15分)</option>
+              <option value="carry">6. 負重行走 (滿分10分)</option>
+              <option value="run">7. 1500m跑走 (滿分20分)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
+          <!-- 分隊單項排名橫向長條圖 -->
+          <div class="lg:col-span-8 bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <div class="h-80 w-full relative">
+              <canvas id="unitRankChart"></canvas>
+            </div>
+            <div class="flex items-center justify-between text-[11px] text-slate-500 mt-2 px-1">
+              <span>綠色：高於大隊平均水平</span>
+              <span id="unitRankBenchmarkText" class="font-bold text-slate-700">大隊基準平均：-</span>
+              <span>琥珀色：低於大隊平均需加強</span>
+            </div>
+          </div>
+
+          <!-- 分隊單項前三名與需補強榜單 -->
+          <div class="lg:col-span-4 space-y-3">
+            <div class="bg-gradient-to-br from-amber-500/10 to-amber-500/5 border border-amber-300/80 rounded-xl p-3.5">
+              <span class="text-xs font-bold text-amber-900 flex items-center gap-1.5 mb-2">
+                <i class="fa-solid fa-trophy text-amber-500"></i> 單項表現最優分隊 TOP 3
+              </span>
+              <div id="unitTop3List" class="space-y-1.5 text-xs">
+                <!-- 動態注入前三名分隊 -->
+              </div>
+            </div>
+
+            <div class="bg-rose-50/80 border border-rose-200 rounded-xl p-3.5">
+              <span class="text-xs font-bold text-rose-900 flex items-center gap-1.5 mb-2">
+                <i class="fa-solid fa-triangle-exclamation text-rose-500"></i> 建議優先輔導補強分隊
+              </span>
+              <div id="unitBottom3List" class="space-y-1.5 text-xs">
+                <!-- 動態注入需加強分隊 -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 分數分佈長條圖 -->
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
         <h3 class="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
@@ -971,15 +1064,21 @@
                 下載常訓批次空白範本 (含第四大隊20個單位)
               </div>
               <p class="text-xs text-slate-600 leading-relaxed">
-                範本格式化好所有必要欄位（單位、姓名、測驗期別、性別、年齡、身高、體重、立定跳遠、後拋、折返、硬舉、懸吊屈體、負重、1500m時間）。
+                範本已格式化必要欄位（單位、姓名、期別、性別、年齡、身高體重與七項實測值）。支援原生 Excel (.xlsx) 與通用 UTF-8 CSV 雙軌下載。若環境限制下載，可直接點擊「複製示範資料」貼至 Excel。
               </p>
             </div>
             <div class="mt-4 flex flex-wrap gap-2">
-              <button onclick="downloadExcelTemplate()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-2 shadow-sm">
-                <i class="fa-solid fa-download"></i> 下載 Excel 範本 (.xlsx)
+              <button onclick="downloadExcelTemplate('xlsx')" class="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-file-excel"></i> 下載 Excel 範本 (.xlsx)
               </button>
-              <button onclick="loadSample400Data()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-2 shadow-sm">
-                <i class="fa-solid fa-users"></i> 注入示範名冊 (60筆兩期對照)
+              <button onclick="downloadExcelTemplate('csv')" class="px-3.5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm" title="通用的 UTF-8 CSV 檔案">
+                <i class="fa-solid fa-file-csv"></i> 下載 CSV 範本 (.csv)
+              </button>
+              <button onclick="copyTemplateDataToClipboard()" class="px-3.5 py-2.5 bg-slate-700 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm" title="複製純文字表格，可直接在 Excel 按貼上">
+                <i class="fa-solid fa-copy"></i> 複製範本資料
+              </button>
+              <button onclick="loadSample400Data()" class="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-users"></i> 注入示範名冊 (60筆)
               </button>
             </div>
           </div>
@@ -992,7 +1091,7 @@
                 選擇已填妥之 Excel 或 CSV 檔案上傳
               </div>
               <p class="text-xs text-slate-600 leading-relaxed">
-                支援 .xlsx, .xls, .csv 檔案。系統讀取後將進行資料驗證，自動根據每位同仁的性別與年齡，對照附件常模算出七項個別分數與總成績。
+                支援 .xlsx, .xls, .csv 檔案。亦可直接點擊「文字貼上匯入」將 Excel 內容貼入文字框完成批次載入！
               </p>
             </div>
             <div class="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
@@ -1000,8 +1099,25 @@
                 <i class="fa-solid fa-file-arrow-up"></i> 選擇檔案並批次匯入
                 <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" onchange="handleExcelUpload(event)" class="hidden">
               </label>
+              <button onclick="togglePasteImportModal()" class="px-3.5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-semibold transition">
+                <i class="fa-solid fa-paste mr-1"></i>文字貼上匯入
+              </button>
               <span id="importStatusText" class="text-xs text-slate-500 font-medium">尚未選取檔案</span>
             </div>
+          </div>
+        </div>
+
+        <!-- 彈出文字貼上批次匯入區塊 -->
+        <div id="pasteImportArea" class="hidden mt-4 p-4 rounded-xl border border-slate-300 bg-slate-50">
+          <div class="flex justify-between items-center mb-2">
+            <span class="text-xs font-bold text-slate-700">直接貼上 Excel 複製的表格文字（包含標題列）：</span>
+            <button onclick="togglePasteImportModal()" class="text-slate-400 hover:text-slate-600 text-xs"><i class="fa-solid fa-xmark"></i> 關閉</button>
+          </div>
+          <textarea id="pasteDataInput" rows="5" placeholder="可直接從 Excel 選取整份表格複製後貼上至此..." class="w-full text-xs font-mono p-2.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none"></textarea>
+          <div class="flex justify-end mt-2">
+            <button onclick="processPastedTextData()" class="px-4 py-1.5 bg-emerald-700 text-white text-xs font-bold rounded-lg hover:bg-emerald-800 transition">
+              <i class="fa-solid fa-check mr-1"></i>解析並匯入名冊
+            </button>
           </div>
         </div>
 
@@ -1055,6 +1171,17 @@
               <button onclick="pushAllDataToGAS()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
                 <i class="fa-solid fa-cloud-arrow-up"></i> 全數同步至雲端
               </button>
+            </div>
+          </div>
+
+          <!-- 即時連線診斷資訊面板 (偵測錯誤原因) -->
+          <div id="gasDiagnosticPanel" class="mt-4 p-4 rounded-xl border border-slate-200 bg-white hidden text-xs space-y-2">
+            <div class="flex items-center justify-between font-bold text-slate-800 border-b pb-2">
+              <span class="flex items-center gap-2"><i class="fa-solid fa-stethoscope text-blue-600"></i> API 雲端連線詳細診斷報告</span>
+              <button onclick="document.getElementById('gasDiagnosticPanel').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i> 關閉</button>
+            </div>
+            <div id="gasDiagnosticContent" class="space-y-1.5 font-mono text-[11px] text-slate-700">
+              <!-- 動態注入診斷細節 -->
             </div>
           </div>
         </div>
@@ -1180,6 +1307,7 @@
     let barChartInstance = null;
     let benchmarkRadarInstance = null;
     let reportRadarInstance = null;
+    let unitRankChartInstance = null; // 新增：分隊單項評比圖表實例
     let currentSortColumn = 'totalScore';
     let isSortDescending = true;
 
@@ -1330,15 +1458,22 @@
         btnC.className = active;
         populateBenchmarkPersonSelect();
         handleBenchmarkTypeChange();
+        setTimeout(() => { if (benchmarkRadarInstance) benchmarkRadarInstance.resize(); }, 100);
       } else if (tabId === 'report') {
         document.getElementById('tabReport').classList.remove('hidden');
         btnR.className = active;
         populateReportFilters();
         renderPersonalReport();
+        setTimeout(() => { if (reportRadarInstance) reportRadarInstance.resize(); }, 100);
       } else if (tabId === 'stats') {
         document.getElementById('tabStats').classList.remove('hidden');
         btnSt.className = active;
         renderStatsTable();
+        renderUnitRankChart();
+        setTimeout(() => { 
+          if (barChartInstance) barChartInstance.resize(); 
+          if (unitRankChartInstance) unitRankChartInstance.resize();
+        }, 100);
       } else if (tabId === 'batch') {
         document.getElementById('tabBatch').classList.remove('hidden');
         btnB.className = active;
@@ -1493,6 +1628,94 @@
       renderProgressComparison(computed, prevRecord);
       evaluatePeerPosition(computed);
       renderRadarChart(computed, prevRecord);
+      renderSingleWeaknessAndRates(computed); // 新增：渲染個人單項達成率條
+      renderSinglePrescription(computed);     // 新增：渲染個人體能診斷與處方
+    }
+
+    // 新增：渲染個人單項達成率與弱點標籤
+    function renderSingleWeaknessAndRates(person) {
+      const container = document.getElementById('singleItemRateContainer');
+      if (!container) return;
+
+      const items = [
+        { label: '立定跳遠', score: person.scores.jump, max: 10, val: person.jump + 'cm' },
+        { label: '後拋擲遠', score: person.scores.throw, max: 15, val: person.throw + 'm' },
+        { label: '折返跑', score: person.scores.shuttle, max: 10, val: person.shuttle + '趟' },
+        { label: '硬舉', score: person.scores.deadlift, max: 20, val: person.deadlift + 'kg' },
+        { label: '懸吊屈體', score: person.scores.hang, max: 15, val: person.hang + (person.femalePullupType === 'sec' ? '秒' : '次') },
+        { label: '負重行走', score: person.scores.carry, max: 10, val: person.carry + 'kg' },
+        { label: '1500m跑走', score: person.scores.run, max: 20, val: person.runSeconds ? `${Math.floor(person.runSeconds/60)}'${person.runSeconds%60}"` : person.beepTest }
+      ];
+
+      container.innerHTML = items.map(it => {
+        const pct = Math.min(100, Math.round((it.score / it.max) * 100));
+        let barColor = 'bg-emerald-500';
+        let badge = '<span class="text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded font-bold">優良</span>';
+        if (pct < 50) {
+          barColor = 'bg-rose-500';
+          badge = '<span class="text-[10px] text-rose-700 bg-rose-100 px-1.5 py-0.2 rounded font-bold">需強化弱項</span>';
+        } else if (pct < 70) {
+          barColor = 'bg-amber-500';
+          badge = '<span class="text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.2 rounded font-bold">中等</span>';
+        }
+
+        return `
+          <div class="space-y-1">
+            <div class="flex justify-between items-center text-xs">
+              <span class="font-bold text-slate-700">${it.label} <span class="text-slate-400 font-normal">(${it.val} · ${it.score}/${it.max}分)</span></span>
+              <div class="flex items-center gap-1.5">
+                ${badge}
+                <span class="font-mono font-bold text-slate-800 text-[11px]">${pct}%</span>
+              </div>
+            </div>
+            <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+              <div class="${barColor} h-full rounded-full transition-all duration-300" style="width: ${pct}%;"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // 新增：個人測驗即時處方建議
+    function renderSinglePrescription(person) {
+      const container = document.getElementById('singlePrescriptionBox');
+      if (!container) return;
+
+      const itemTips = {
+        jump: { label: '立定跳遠', max: 10, tip: '爆發力未達標，建議加強深蹲跳躍 (Jump Squat) 與增強式動力鏈伸展。' },
+        throw: { label: '後拋擲遠', max: 15, tip: '後側發力不足，建議加強臀大肌推蹬與胸椎伸展爆發力後拋練習。' },
+        shuttle: { label: '折返跑', max: 10, tip: '煞車變向敏捷不足，建議安排 10m 繩梯敏捷步伐與下肢急煞減速訓練。' },
+        deadlift: { label: '菱形槓硬舉', max: 20, tip: '絕對肌力欠佳，建議每週安排 2 次 75~85% 1RM 漸進超負荷硬舉課表。' },
+        hang: { label: '懸吊屈體', max: 15, tip: '核心捲腹與指握力需補強，建議進行單槓懸垂、懸吊提膝與農夫握力訓練。' },
+        carry: { label: '負重行走', max: 10, tip: '軀幹抗側屈與肩胛支撐待加強，建議加強重物農夫走路 (Farmer Walk)。' },
+        run: { label: '1500m跑走', max: 20, tip: '有氧心肺基礎不足，建議進行 Zone 2 長距離慢跑打底搭配高強度間歇跑。' }
+      };
+
+      const weakItems = [];
+      const strongItems = [];
+      Object.keys(itemTips).forEach(k => {
+        const pct = person.scores[k] / itemTips[k].max;
+        if (pct < 0.5) weakItems.push(itemTips[k]);
+        else if (pct >= 0.8) strongItems.push(itemTips[k].label);
+      });
+
+      let html = [];
+      html.push(`<b>整體評估：</b>本梯次總分 <b>${person.totalScore} 分</b>，整體體能評定為【${person.isPassed ? '常規模組及格，戰術肌耐力充沛' : '未達常模基準線，須加強專項體能'}】。`);
+      
+      if (strongItems.length > 0) {
+        html.push(`<b>戰術優勢項目：</b>「${strongItems.join('、')}」表現優異，具備良好的戰術對抗能力。`);
+      }
+
+      if (weakItems.length > 0) {
+        html.push(`<b>體能教官加強建議（弱項處方）：</b>`);
+        weakItems.forEach(w => {
+          html.push(`• <b>${w.label}：</b>${w.tip}`);
+        });
+      } else {
+        html.push(`<b>均衡發展：</b>七項體能皆達 50% 以上標準，請持續維持週期化規律訓練！`);
+      }
+
+      container.innerHTML = html.map(p => `<p>• ${p}</p>`).join('');
     }
 
     function renderProgressComparison(current, prev) {
@@ -2179,6 +2402,7 @@
       document.getElementById('statCardPassRate').textContent = `${passRate}%`;
       document.getElementById('statCardPassCount').textContent = `合格 ${passCount} / 未達標 ${count - passCount}`;
 
+      renderUnitRankChart(); // 同步重繪分隊單項評比圖
       const tbody = document.getElementById('recordsTableBody');
       tbody.innerHTML = list.map((r, index) => {
         const rank = index + 1;
@@ -2301,6 +2525,144 @@
     }
 
     /* ==========================================================================
+       新增：第四大隊轄屬分隊各單項體能橫向評比與分佈圖
+       ========================================================================== */
+    function renderUnitRankChart() {
+      const canvas = document.getElementById('unitRankChart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const selectedItem = document.getElementById('unitRankItemSelect') ? document.getElementById('unitRankItemSelect').value : 'totalScore';
+      const sessionFilter = document.getElementById('statsFilterSession') ? document.getElementById('statsFilterSession').value : 'ALL';
+
+      // 依當前篩選期別取得受測名冊
+      const pool = sessionFilter === 'ALL' ? firefighterRecords : firefighterRecords.filter(r => r.session === sessionFilter);
+
+      const itemConfig = {
+        totalScore: { name: '總分', max: 100, unit: '分' },
+        jump: { name: '立定跳遠得分', max: 10, unit: '分' },
+        throw: { name: '後拋擲遠得分', max: 15, unit: '分' },
+        shuttle: { name: '折返跑得分', max: 10, unit: '分' },
+        deadlift: { name: '菱形槓硬舉得分', max: 20, unit: '分' },
+        hang: { name: '懸吊屈體得分', max: 15, unit: '分' },
+        carry: { name: '負重行走得分', max: 10, unit: '分' },
+        run: { name: '1500m跑走得分', max: 20, unit: '分' }
+      };
+
+      const cfg = itemConfig[selectedItem] || itemConfig.totalScore;
+
+      // 統計全大隊基準平均
+      let grandAvg = 0;
+      if (pool.length > 0) {
+        const sumAll = pool.reduce((acc, r) => acc + (selectedItem === 'totalScore' ? r.totalScore : r.scores[selectedItem]), 0);
+        grandAvg = parseFloat((sumAll / pool.length).toFixed(1));
+      }
+      const benchText = document.getElementById('unitRankBenchmarkText');
+      if (benchText) benchText.textContent = `全大隊基準平均：${grandAvg} ${cfg.unit}`;
+
+      // 針對第四大隊各分隊進行聚合運算
+      const unitStats = currentUnits.map(unit => {
+        const uRecords = pool.filter(r => r.unit === unit);
+        if (uRecords.length === 0) {
+          return { unit, avg: 0, count: 0 };
+        }
+        const sum = uRecords.reduce((acc, r) => acc + (selectedItem === 'totalScore' ? r.totalScore : r.scores[selectedItem]), 0);
+        return {
+          unit: unit.replace("第四大隊", ""), // 簡化標籤以利在圖表展示
+          fullName: unit,
+          avg: parseFloat((sum / uRecords.length).toFixed(1)),
+          count: uRecords.length
+        };
+      });
+
+      // 依平均分數由高至低排序
+      unitStats.sort((a, b) => b.avg - a.avg);
+
+      const labels = unitStats.map(u => u.unit);
+      const dataVals = unitStats.map(u => u.avg);
+      const bgColors = unitStats.map(u => u.avg >= grandAvg ? 'rgba(16, 185, 129, 0.8)' : 'rgba(245, 158, 11, 0.8)');
+
+      // 注入排行榜 TOP 3 與需加強分隊名單
+      const top3Container = document.getElementById('unitTop3List');
+      const bottom3Container = document.getElementById('unitBottom3List');
+
+      if (top3Container) {
+        const top3 = unitStats.filter(u => u.count > 0).slice(0, 3);
+        if (top3.length === 0) {
+          top3Container.innerHTML = '<span class="text-slate-400">目前尚無受測數據</span>';
+        } else {
+          top3Container.innerHTML = top3.map((u, i) => `
+            <div class="flex items-center justify-between bg-white/80 px-2.5 py-1.5 rounded-lg border border-amber-200 shadow-2xs">
+              <span class="font-bold text-slate-800 flex items-center gap-1.5">
+                <span class="w-4 h-4 rounded-full ${i===0?'bg-amber-400 text-amber-950':(i===1?'bg-slate-300 text-slate-800':'bg-amber-700 text-white')} flex items-center justify-center text-[10px] font-black">${i+1}</span>
+                ${u.fullName}
+              </span>
+              <span class="font-black text-amber-700 font-mono">${u.avg} ${cfg.unit}</span>
+            </div>
+          `).join('');
+        }
+      }
+
+      if (bottom3Container) {
+        const activeUnits = unitStats.filter(u => u.count > 0);
+        const bottom3 = [...activeUnits].reverse().slice(0, 3);
+        if (bottom3.length === 0) {
+          bottom3Container.innerHTML = '<span class="text-slate-400">目前尚無受測數據</span>';
+        } else {
+          bottom3Container.innerHTML = bottom3.map((u, i) => `
+            <div class="flex items-center justify-between bg-white/80 px-2.5 py-1.5 rounded-lg border border-rose-200 shadow-2xs">
+              <span class="font-bold text-slate-700 flex items-center gap-1.5">
+                <i class="fa-solid fa-arrow-down text-rose-500 text-[10px]"></i>
+                ${u.fullName}
+              </span>
+              <span class="font-bold text-rose-600 font-mono">${u.avg} ${cfg.unit}</span>
+            </div>
+          `).join('');
+        }
+      }
+
+      if (unitRankChartInstance) {
+        unitRankChartInstance.data.labels = labels;
+        unitRankChartInstance.data.datasets[0].label = `${cfg.name} (滿分${cfg.max}分)`;
+        unitRankChartInstance.data.datasets[0].data = dataVals;
+        unitRankChartInstance.data.datasets[0].backgroundColor = bgColors;
+        unitRankChartInstance.options.scales.y.max = cfg.max;
+        unitRankChartInstance.update();
+        return;
+      }
+
+      unitRankChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: `${cfg.name} (滿分${cfg.max}分)`,
+            data: dataVals,
+            backgroundColor: bgColors,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { min: 0, max: cfg.max, ticks: { stepSize: cfg.max > 20 ? 20 : 5 } },
+            x: { ticks: { font: { size: 10 }, autoSkip: false, maxRotation: 45, minRotation: 45 } }
+          },
+          plugins: {
+            legend: { display: true, position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `平均得分：${context.parsed.y} ${cfg.unit} (大隊均值 ${grandAvg})`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    /* ==========================================================================
        6. 個人專屬戰術體能評估報告與 PDF 匯出模組
        ========================================================================== */
     function populateReportFilters() {
@@ -2347,7 +2709,12 @@
     }
 
     function renderPersonalReport() {
-      const id = document.getElementById('reportPersonSelect').value;
+      let id = document.getElementById('reportPersonSelect') ? document.getElementById('reportPersonSelect').value : null;
+      if (!id && firefighterRecords.length > 0) {
+        id = firefighterRecords[0].id;
+        const pSel = document.getElementById('reportPersonSelect');
+        if (pSel) pSel.value = id;
+      }
       const person = firefighterRecords.find(r => r.id === id);
       if (!person) return;
 
@@ -2575,133 +2942,358 @@
     }
 
     /* ==========================================================================
-       7. Excel 批次作業與 20 單位名冊維護
+       7. Excel 批次作業與 20 單位名冊維護 (含原生 Blob 與 UTF-8 CSV 雙軌下載)
        ========================================================================== */
-    function downloadExcelTemplate() {
-      const templateData = [
-        {
-          "單位": "第四大隊大同分隊",
-          "姓名": "王小明",
-          "測驗期別": "115年上半年",
-          "性別(男/女)": "男",
-          "年齡": 27,
-          "身高(cm)": 175,
-          "體重(kg)": 72,
-          "立定跳遠(cm)": 230,
-          "後拋擲遠(m)": 10,
-          "折返跑(趟)": 13,
-          "菱形槓硬舉(kg)": 90,
-          "懸吊屈體(次或女性秒)": 7,
-          "負重行走(kg)": 120,
-          "1500m跑走(秒數或分:秒)": "8:20"
-        },
-        {
-          "單位": "第四大隊大同分隊",
-          "姓名": "王小明",
-          "測驗期別": "115年下半年",
-          "性別(男/女)": "男",
-          "年齡": 27,
-          "身高(cm)": 175,
-          "體重(kg)": 71,
-          "立定跳遠(cm)": 245,
-          "後拋擲遠(m)": 12,
-          "折返跑(趟)": 14,
-          "菱形槓硬舉(kg)": 110,
-          "懸吊屈體(次或女性秒)": 10,
-          "負重行走(kg)": 140,
-          "1500m跑走(秒數或分:秒)": "7:45"
-        }
-      ];
+    const BATCH_TEMPLATE_ROWS = [
+      {
+        "單位": "第四大隊大同分隊",
+        "姓名": "王小明",
+        "測驗期別": "115年上半年",
+        "性別(男/女)": "男",
+        "年齡": 27,
+        "身高(cm)": 175,
+        "體重(kg)": 72,
+        "立定跳遠(cm)": 230,
+        "後拋擲遠(m)": 10.0,
+        "折返跑(趟)": 13,
+        "菱形槓硬舉(kg)": 90,
+        "懸吊屈體(次或女性秒)": 7,
+        "負重行走(kg)": 120,
+        "1500m跑走(秒數或分:秒)": "8:20"
+      },
+      {
+        "單位": "第四大隊劍潭分隊",
+        "姓名": "李雅婷",
+        "測驗期別": "115年上半年",
+        "性別(男/女)": "女",
+        "年齡": 26,
+        "身高(cm)": 163,
+        "體重(kg)": 54,
+        "立定跳遠(cm)": 170,
+        "後拋擲遠(m)": 8.5,
+        "折返跑(趟)": 12,
+        "菱形槓硬舉(kg)": 60,
+        "懸吊屈體(次或女性秒)": 28,
+        "負重行走(kg)": 80,
+        "1500m跑走(秒數或分:秒)": "9:30"
+      },
+      {
+        "單位": "第四大隊石牌分隊",
+        "姓名": "陳建宏",
+        "測驗期別": "115年下半年",
+        "性別(男/女)": "男",
+        "年齡": 35,
+        "身高(cm)": 178,
+        "體重(kg)": 75,
+        "立定跳遠(cm)": 240,
+        "後拋擲遠(m)": 12.0,
+        "折返跑(趟)": 14,
+        "菱形槓硬舉(kg)": 120,
+        "懸吊屈體(次或女性秒)": 10,
+        "負重行走(kg)": 140,
+        "1500m跑走(秒數或分:秒)": "7:40"
+      }
+    ];
 
-      const ws = XLSX.utils.json_to_sheet(templateData);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "體測批次匯入範本");
-      XLSX.writeFile(wb, "第四大隊消防體能測驗批次匯入範本.xlsx");
-      showToast("已下載 Excel 範本！", "info");
+    // 通用 Blob + Data URI 雙備援觸發下載函式（免疫 iframe 與瀏覽器安全性阻擋）
+    function triggerBlobDownload(blob, filename) {
+      try {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          if (a.parentNode) document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+        }, 800);
+      } catch (e) {
+        console.warn("URL.createObjectURL 失敗，轉採 FileReader DataURI 備援:", e);
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = evt.target.result;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => { if (a.parentNode) document.body.removeChild(a); }, 800);
+        };
+        reader.readAsDataURL(blob);
+      }
+    }
+
+    // 產生標準 UTF-8 含 BOM 的 CSV 檔案（保證 Excel 開啟絕不亂碼）
+    function generateUTF8CSV(dataList) {
+      if (!dataList || dataList.length === 0) return "";
+      const headers = Object.keys(dataList[0]);
+      const csvLines = [headers.join(",")];
+      
+      dataList.forEach(row => {
+        const line = headers.map(h => {
+          let val = (row[h] === undefined || row[h] === null) ? "" : String(row[h]);
+          if (val.includes(",") || val.includes('"') || val.includes("\n")) {
+            val = '"' + val.replace(/"/g, '""') + '"';
+          }
+          return val;
+        }).join(",");
+        csvLines.push(line);
+      });
+
+      // \uFEFF 為 UTF-8 BOM 字元
+      return "\uFEFF" + csvLines.join("\r\n");
+    }
+
+    // 新增：複製制式範本至剪貼簿
+    function copyTemplateDataToClipboard() {
+      const headers = Object.keys(BATCH_TEMPLATE_ROWS[0]);
+      let tsv = headers.join("\t") + "\n";
+      BATCH_TEMPLATE_ROWS.forEach(r => {
+        tsv += headers.map(h => r[h]).join("\t") + "\n";
+      });
+
+      const tempArea = document.createElement('textarea');
+      tempArea.value = tsv;
+      tempArea.style.position = 'fixed';
+      tempArea.style.opacity = '0';
+      document.body.appendChild(tempArea);
+      tempArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempArea);
+
+      showToast("✅ 已複製範本資料！可直接在 Excel 按 Ctrl+V 貼上", "success");
+    }
+
+    function togglePasteImportModal() {
+      const modal = document.getElementById('pasteImportArea');
+      if (modal) modal.classList.toggle('hidden');
+    }
+
+    function processPastedTextData() {
+      const text = document.getElementById('pasteDataInput').value.trim();
+      if (!text) {
+        showToast("請先貼上資料！", "warning");
+        return;
+      }
+      try {
+        const lines = text.split(/\r\n|\n/).filter(l => l.trim().length > 0);
+        if (lines.length < 2) {
+          showToast("資料列數過少，請包含標題列與資料！", "warning");
+          return;
+        }
+        // 判斷分隔符 (Tab 或逗號)
+        const delimiter = lines[0].includes("\t") ? "\t" : ",";
+        const headers = lines[0].split(delimiter).map(h => h.trim().replace(/^["']|["']$/g, ''));
+        const rows = [];
+        for (let i = 1; i < lines.length; i++) {
+          const vals = lines[i].split(delimiter).map(v => v.trim().replace(/^["']|["']$/g, ''));
+          const obj = {};
+          headers.forEach((h, idx) => { obj[h] = vals[idx] !== undefined ? vals[idx] : ''; });
+          rows.push(obj);
+        }
+        processImportedRows(rows);
+        togglePasteImportModal();
+      } catch (err) {
+        showToast("解析失敗，請確認貼上的表格格式！", "warning");
+      }
+    }
+
+    function downloadExcelTemplate(format = 'xlsx') {
+      try {
+        const filenameBase = "第四大隊消防體能測驗批次匯入範本";
+
+        // 若使用者指定 CSV，或目前環境 SheetJS 尚未就緒，自動以 CSV 格式下載
+        if (format === 'csv' || typeof XLSX === 'undefined') {
+          const csvContent = generateUTF8CSV(BATCH_TEMPLATE_ROWS);
+          const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+          triggerBlobDownload(blob, `${filenameBase}.csv`);
+          showToast("已下載 UTF-8 CSV 範本（Excel可直接開啟）！", "success");
+          return;
+        }
+
+        // 正常 XLSX 流程：採用 ArrayBuffer + Blob 封裝下載，提升相容性
+        const ws = XLSX.utils.json_to_sheet(BATCH_TEMPLATE_ROWS);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "體測批次匯入範本");
+        
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        triggerBlobDownload(blob, `${filenameBase}.xlsx`);
+        showToast("已成功下載 Excel 範本 (.xlsx)！", "success");
+      } catch (err) {
+        console.warn("XLSX 下載遭遇異常，自動降級轉為 CSV 下載:", err);
+        try {
+          const csvContent = generateUTF8CSV(BATCH_TEMPLATE_ROWS);
+          const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+          triggerBlobDownload(blob, "第四大隊消防體能測驗批次匯入範本.csv");
+          showToast("已自動以 CSV 格式完成範本下載！", "info");
+        } catch (innerErr) {
+          copyTemplateDataToClipboard();
+          showToast("瀏覽器阻擋下載，已自動將範本內容複製至剪貼簿！", "warning");
+        }
+      }
+    }
+
+    // 原生純 JS 解析 CSV 輔助函式（不依賴任何外部庫）
+    function parseCSVToObjects(text) {
+      const lines = text.split(/\r\n|\n/).filter(line => line.trim().length > 0);
+      if (lines.length < 2) return [];
+
+      function parseLine(line) {
+        const result = [];
+        let cur = '';
+        let inQuote = false;
+        for (let i = 0; i < line.length; i++) {
+          const c = line[i];
+          if (c === '"') {
+            if (inQuote && line[i+1] === '"') {
+              cur += '"';
+              i++;
+            } else {
+              inQuote = !inQuote;
+            }
+          } else if (c === ',' && !inQuote) {
+            result.push(cur.trim());
+            cur = '';
+          } else {
+            cur += c;
+          }
+        }
+        result.push(cur.trim());
+        return result;
+      }
+
+      // 移除 BOM
+      let firstLine = lines[0];
+      if (firstLine.charCodeAt(0) === 0xFEFF) firstLine = firstLine.substring(1);
+      const headers = parseLine(firstLine);
+
+      const rows = [];
+      for (let i = 1; i < lines.length; i++) {
+        const values = parseLine(lines[i]);
+        if (values.length === 0 || (values.length === 1 && values[0] === '')) continue;
+        const obj = {};
+        headers.forEach((h, idx) => {
+          obj[h] = values[idx] !== undefined ? values[idx] : '';
+        });
+        rows.push(obj);
+      }
+      return rows;
     }
 
     function handleExcelUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
 
+      const isCsv = file.name.toLowerCase().endsWith('.csv');
       document.getElementById('importStatusText').textContent = `正在讀取 ${file.name}...`;
+
       const reader = new FileReader();
+
+      // CSV 專屬純文字讀取（即使無 SheetJS 也能 100% 解析）
+      if (isCsv) {
+        reader.onload = function(e) {
+          try {
+            const text = e.target.result;
+            const rows = parseCSVToObjects(text);
+            processImportedRows(rows);
+          } catch (err) {
+            console.error(err);
+            showToast("CSV 解析失敗，請確認檔案格式", "warning");
+            document.getElementById('importStatusText').textContent = "讀取失敗";
+          }
+        };
+        reader.readAsText(file, "UTF-8");
+        return;
+      }
+
+      // XLSX 讀取流程
       reader.onload = function(e) {
         try {
+          if (typeof XLSX === 'undefined') {
+            throw new Error("SheetJS 尚未載入完成，請改用 .csv 檔案上傳或重新整理頁面！");
+          }
           const data = new Uint8Array(e.target.result);
           const workbook = XLSX.read(data, { type: 'array' });
           const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
           const rows = XLSX.utils.sheet_to_json(firstSheet);
-
-          if (!rows || rows.length === 0) {
-            showToast("檔案中無資料列！", "warning");
-            document.getElementById('importStatusText').textContent = "檔案無內容";
-            return;
-          }
-
-          let addedCount = 0;
-          rows.forEach((row, idx) => {
-            const name = (row['姓名'] || row['Name'] || '').toString().trim();
-            if (!name) return;
-
-            const unit = (row['單位'] || row['Unit'] || currentUnits[0]).toString().trim();
-            const session = (row['測驗期別'] || row['期別'] || row['梯次'] || '115年上半年').toString().trim();
-            if (session && !currentSessions.includes(session)) currentSessions.push(session);
-
-            const rawGender = (row['性別(男/女)'] || row['性別'] || '男').toString().trim();
-            const gender = (rawGender === '女' || rawGender.toLowerCase() === 'female') ? 'female' : 'male';
-            const age = parseInt(row['年齡'] || row['Age'] || 30, 10);
-            const height = parseFloat(row['身高(cm)'] || row['身高'] || 170);
-            const weight = parseFloat(row['體重(kg)'] || row['體重'] || 70);
-
-            let runSeconds = 500;
-            const runVal = (row['1500m跑走(秒數或分:秒)'] || row['1500m跑走'] || row['跑步'] || '').toString().trim();
-            if (runVal.includes(':')) {
-              const p = runVal.split(':');
-              runSeconds = (parseInt(p[0], 10) * 60) + parseInt(p[1], 10);
-            } else if (!isNaN(parseFloat(runVal)) && parseFloat(runVal) > 0) {
-              runSeconds = parseFloat(runVal);
-            }
-
-            const record = computeFullRecord({
-              id: 'BATCH_' + Date.now() + '_' + idx,
-              name: name,
-              unit: unit,
-              session: session,
-              gender: gender,
-              age: age,
-              height: height,
-              weight: weight,
-              jump: parseFloat(row['立定跳遠(cm)'] || row['立定跳遠'] || 0),
-              throw: parseFloat(row['後拋擲遠(m)'] || row['後拋擲遠'] || 0),
-              shuttle: parseFloat(row['折返跑(趟)'] || row['折返跑'] || 0),
-              deadlift: parseFloat(row['菱形槓硬舉(kg)'] || row['菱形槓硬舉'] || 0),
-              hang: parseFloat(row['懸吊屈體(次或女性秒)'] || row['懸吊屈體'] || 0),
-              femalePullupType: gender === 'female' ? 'sec' : 'rep',
-              carry: parseFloat(row['負重行走(kg)'] || row['負重行走'] || 0),
-              runMode: 'time',
-              runSeconds: runSeconds,
-              beepTest: ''
-            });
-
-            const existingIdx = firefighterRecords.findIndex(r => r.name === record.name && r.unit === record.unit && r.session === record.session);
-            if (existingIdx >= 0) firefighterRecords[existingIdx] = record;
-            else firefighterRecords.push(record);
-            addedCount++;
-          });
-
-          refreshSessionDataList();
-          document.getElementById('importStatusText').textContent = `成功匯入 ${addedCount} 筆同仁體測資料！`;
-          showToast(`成功匯入 ${addedCount} 筆同仁體測資料！已自動完成換算`, "success");
-          renderStatsTable();
-          switchTab('stats');
+          processImportedRows(rows);
         } catch (err) {
           console.error(err);
-          showToast("匯入失敗，請確認檔案格式是否正確", "warning");
+          showToast(err.message || "匯入失敗，請確認檔案格式是否正確", "warning");
           document.getElementById('importStatusText').textContent = "讀取發生錯誤";
         }
       };
       reader.readAsArrayBuffer(file);
+    }
+
+    // 統一處理批次匯入物件陣列
+    function processImportedRows(rows) {
+      if (!rows || rows.length === 0) {
+        showToast("檔案中無有效資料列！", "warning");
+        document.getElementById('importStatusText').textContent = "檔案無內容";
+        return;
+      }
+
+      let addedCount = 0;
+      rows.forEach((row, idx) => {
+        const name = (row['姓名'] || row['Name'] || '').toString().trim();
+        if (!name) return;
+
+        const unit = (row['單位'] || row['Unit'] || currentUnits[0]).toString().trim();
+        const session = (row['測驗期別'] || row['期別'] || row['梯次'] || '115年上半年').toString().trim();
+        if (session && !currentSessions.includes(session)) currentSessions.push(session);
+
+        const rawGender = (row['性別(男/女)'] || row['性別'] || '男').toString().trim();
+        const gender = (rawGender === '女' || rawGender.toLowerCase() === 'female') ? 'female' : 'male';
+        const age = parseInt(row['年齡'] || row['Age'] || 30, 10);
+        const height = parseFloat(row['身高(cm)'] || row['身高'] || 170);
+        const weight = parseFloat(row['體重(kg)'] || row['體重'] || 70);
+
+        let runSeconds = 500;
+        const runVal = (row['1500m跑走(秒數或分:秒)'] || row['1500m跑走'] || row['跑步'] || '').toString().trim();
+        if (runVal.includes(':') || runVal.includes('分')) {
+          const clean = runVal.replace('秒', '');
+          const p = clean.split(/[:分]/);
+          runSeconds = (parseInt(p[0], 10) * 60) + (parseInt(p[1], 10) || 0);
+        } else if (!isNaN(parseFloat(runVal)) && parseFloat(runVal) > 0) {
+          runSeconds = parseFloat(runVal);
+        }
+
+        const record = computeFullRecord({
+          id: 'BATCH_' + Date.now() + '_' + idx,
+          name: name,
+          unit: unit,
+          session: session,
+          gender: gender,
+          age: age,
+          height: height,
+          weight: weight,
+          jump: parseFloat(row['立定跳遠(cm)'] || row['立定跳遠'] || 0),
+          throw: parseFloat(row['後拋擲遠(m)'] || row['後拋擲遠'] || 0),
+          shuttle: parseFloat(row['折返跑(趟)'] || row['折返跑'] || 0),
+          deadlift: parseFloat(row['菱形槓硬舉(kg)'] || row['菱形槓硬舉'] || 0),
+          hang: parseFloat(row['懸吊屈體(次或女性秒)'] || row['懸吊屈體'] || 0),
+          femalePullupType: gender === 'female' ? 'sec' : 'rep',
+          carry: parseFloat(row['負重行走(kg)'] || row['負重行走'] || 0),
+          runMode: 'time',
+          runSeconds: runSeconds,
+          beepTest: ''
+        });
+
+        const existingIdx = firefighterRecords.findIndex(r => r.name === record.name && r.unit === record.unit && r.session === record.session);
+        if (existingIdx >= 0) firefighterRecords[existingIdx] = record;
+        else firefighterRecords.push(record);
+        addedCount++;
+      });
+
+      refreshSessionDataList();
+      document.getElementById('importStatusText').textContent = `成功匯入 ${addedCount} 筆同仁體測資料！`;
+      showToast(`成功匯入 ${addedCount} 筆同仁體測資料！已自動完成換算`, "success");
+      renderStatsTable();
+      switchTab('stats');
     }
 
     function exportCurrentTableToExcel() {
@@ -2720,7 +3312,7 @@
           "單位": r.unit,
           "姓名": r.name,
           "測驗期別": r.session || '',
-          "性別": r.gender === 'male' ? '男' : '女',
+          "性別": r.gender === 'female' ? '女' : '男',
           "年齡": r.age,
           "BMI": r.bmi,
           "立定跳遠(cm)": r.jump,
@@ -2743,11 +3335,25 @@
         };
       });
 
-      const ws = XLSX.utils.json_to_sheet(exportData);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "同仁常訓成績統計");
-      XLSX.writeFile(wb, `第四大隊體測統計總表_${new Date().toISOString().slice(0,10)}.xlsx`);
-      showToast("已成功匯出 Excel 報表！", "success");
+      const dateStr = new Date().toISOString().slice(0,10);
+      const filenameBase = `第四大隊體測統計總表_${dateStr}`;
+
+      try {
+        if (typeof XLSX === 'undefined') throw new Error("無 XLSX 模組");
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "同仁常訓成績統計");
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        triggerBlobDownload(blob, `${filenameBase}.xlsx`);
+        showToast("已成功匯出 Excel 報表！", "success");
+      } catch (err) {
+        // 降級以標準 UTF-8 CSV 匯出
+        const csvContent = generateUTF8CSV(exportData);
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        triggerBlobDownload(blob, `${filenameBase}.csv`);
+        showToast("已自動以 CSV 格式匯出統計報表！", "info");
+      }
     }
 
     function loadSample400Data() {
@@ -2888,7 +3494,7 @@
         
         const timeout = setTimeout(() => {
           cleanup();
-          reject(new Error('JSONP 連線逾時，請確認 Google Apps Script 已部署為新版本且誰可以存取設為 Anyone'));
+          reject(new Error('JSONP 連線逾時 (12秒無回應)。通常原因是：1. Google 帳號多重登入衝突，請用無痕視窗開啟；2. 部署未設為「任何人(Anyone)」；3. Apps Script 內部拋出例外。'));
         }, 12000);
 
         function cleanup() {
@@ -2904,9 +3510,9 @@
 
         const delimiter = urlWithParams.includes('?') ? '&' : '?';
         script.src = `${urlWithParams}${delimiter}callback=${callbackName}&_t=${Date.now()}`;
-        script.onerror = function() {
+        script.onerror = function(err) {
           cleanup();
-          reject(new Error('無法載入 Google 腳本，請確認 Apps Script 部署設定'));
+          reject(new Error('無法載入 Google 腳本 (ERR_BLOCKED)。請確認 Apps Script 部署設定誰可以存取設為「任何人 (Anyone)」。'));
         };
 
         document.head.appendChild(script);
@@ -2916,33 +3522,71 @@
     async function testGASConnection() {
       const dot = document.getElementById('gasStatusDot');
       const targetUrl = getGasUrl();
-      showToast("正在連線 Google Apps Script 後端...", "info");
+      const diagPanel = document.getElementById('gasDiagnosticPanel');
+      const diagContent = document.getElementById('gasDiagnosticContent');
+
+      showToast("正在診斷 Google Apps Script 連線狀態...", "info");
       if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 inline-block animate-ping";
 
+      let diagLog = [];
+      diagLog.push(`[${new Date().toLocaleTimeString()}] 開始檢測端點: ${targetUrl}`);
+
       try {
-        let res;
+        let res = null;
+        let fetchSuccess = false;
+
+        // 測試 1: 標準 Fetch (Simple CORS GET, 不帶自訂 Header)
         try {
+          diagLog.push("通道 1 [Fetch]: 發送 GET 請求 (redirect: follow)...");
           const resp = await fetch(`${targetUrl}?action=ping&_t=${Date.now()}`, {
             method: "GET",
-            mode: "cors",
-            redirect: "follow"
+            redirect: "follow",
+            cache: "no-store"
           });
+          diagLog.push(`通道 1 回應狀態碼: HTTP ${resp.status} ${resp.statusText}`);
           if (resp.ok) {
             res = await resp.json();
+            fetchSuccess = true;
+            diagLog.push("通道 1 成功解析 JSON 回應！");
           } else {
-            throw new Error("HTTP Status " + resp.status);
+            diagLog.push(`通道 1 伺服器回傳非 200 狀態: ${resp.status}`);
           }
         } catch (fetchErr) {
-          console.warn("標準 fetch 失敗，自動切換至第二軌 JSONP 跨域通道...", fetchErr);
-          res = await fetchGASViaJSONP(`${targetUrl}?action=ping`);
+          diagLog.push(`通道 1 Fetch 受限 (常見於 CORS 轉導或登入跳轉): ${fetchErr.message}`);
         }
 
-        if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block";
-        showToast(res.message || "Google Apps Script 雲端連線正常，任何人均可存取！", "success");
+        // 測試 2: JSONP 備援通道
+        if (!res) {
+          diagLog.push("通道 2 [JSONP]: 啟動動態 script 標籤降級連線...");
+          res = await fetchGASViaJSONP(`${targetUrl}?action=ping`);
+          diagLog.push("通道 2 JSONP 成功接收回呼資料！");
+        }
+
+        if (res && res.sheetConnected === false) {
+          if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 inline-block";
+          diagLog.push(`<span class="text-amber-600 font-bold">⚠️ 後端警示: ${res.message}</span>`);
+          showToast(res.message, "warning");
+        } else {
+          if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block";
+          diagLog.push(`<span class="text-emerald-600 font-bold">✅ 連線成功！${res.message || "試算表連接就緒"}</span>`);
+          showToast(res.message || "Google Apps Script 雲端連線正常，試算表連接就緒！", "success");
+        }
       } catch (err) {
         console.warn("GAS Ping Exception:", err);
         if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-rose-400 inline-block";
-        showToast("連線未成功：" + (err.message || "請確認已在 Apps Script 點擊 testRun 授權並發布新版本"), "warning");
+        diagLog.push(`<span class="text-rose-600 font-bold">❌ 連線失敗: ${err.message}</span>`);
+        diagLog.push(`<div class="mt-2 p-2 bg-slate-100 rounded text-slate-600">
+          <b>排除步驟建議：</b><br>
+          1. 請嘗試以<b>瀏覽器無痕視窗 (Incognito)</b> 開啟網頁，避免多重 Google 帳號衝突。<br>
+          2. <a href="${targetUrl}?action=ping" target="_blank" class="text-blue-600 underline font-bold">點此直接在瀏覽器新分頁打開 API 網址</a>，確認是否出現 Google 登入畫面（若是，代表權限尚未設為任何人）。<br>
+          3. 確認 Code.gs 中的 SPREADSHEET_ID 是否已填妥試算表 ID。
+        </div>`);
+        showToast("連線未成功，已開啟下方詳細診斷報告！", "warning");
+      }
+
+      if (diagPanel && diagContent) {
+        diagContent.innerHTML = diagLog.join("<br>");
+        diagPanel.classList.remove("hidden");
       }
     }
 
@@ -2954,21 +3598,24 @@
       if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 inline-block animate-spin";
 
       try {
-        let data;
+        let data = null;
+        // 第一軌：嘗試標準 fetch (Simple CORS, no custom headers)
         try {
-          data = await fetchGASViaJSONP(`${targetUrl}?action=getAll`);
-        } catch (jsonpErr) {
-          console.warn("JSONP 失敗，改嘗試標準 fetch...", jsonpErr);
           const resp = await fetch(`${targetUrl}?action=getAll&_t=${Date.now()}`, {
             method: "GET",
-            mode: "cors",
-            redirect: "follow"
+            redirect: "follow",
+            cache: "no-store"
           });
           if (resp.ok) {
             data = await resp.json();
-          } else {
-            throw new Error("HTTP " + resp.status);
           }
+        } catch (fetchErr) {
+          console.warn("標準 fetch 讀取失敗，改採第二軌 JSONP 跨域通道...", fetchErr);
+        }
+
+        // 第二軌：JSONP 備援
+        if (!data) {
+          data = await fetchGASViaJSONP(`${targetUrl}?action=getAll`);
         }
 
         if (data && data.status === "error") {
@@ -3031,7 +3678,9 @@
       } catch (err) {
         console.error("GAS Fetch Error:", err);
         if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-red-400 inline-block";
-        showToast("雲端讀取失敗：" + (err.message || "請檢查 Apps Script 設定"), "warning");
+        showToast("雲端讀取失敗：" + (err.message || "請檢查 Apps Script 設定與權限"), "warning");
+        // 自動執行診斷並展示診斷面板
+        testGASConnection();
       }
     }
 
@@ -3161,7 +3810,7 @@
       }
     }
 
-    // 將目前記憶體資料庫全數推送到 Google Apps Script (POST)
+    // 將目前記憶體資料庫全數推送到 Google Apps Script (POST，雙層降級防禦)
     async function pushAllDataToGAS() {
       if (firefighterRecords.length === 0) {
         showToast("目前本機尚無任何測驗資料可同步！", "warning");
@@ -3174,15 +3823,27 @@
       if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 inline-block animate-pulse";
 
       try {
-        await fetch(targetUrl, {
-          method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({
-            action: "syncAll",
-            records: firefighterRecords
-          })
+        const bodyContent = JSON.stringify({
+          action: "syncAll",
+          records: firefighterRecords
         });
+
+        try {
+          await fetch(targetUrl, {
+            method: "POST",
+            redirect: "follow",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: bodyContent
+          });
+        } catch (corsErr) {
+          // 降級 no-cors 模式確保發出
+          await fetch(targetUrl, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: bodyContent
+          });
+        }
 
         if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block";
         showToast(`同步指令已送出！${firefighterRecords.length} 筆名冊已全量備份至 Google 試算表。`, "success");
