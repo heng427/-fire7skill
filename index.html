@@ -880,7 +880,7 @@
     <section id="tabBatch" class="tab-content hidden space-y-6">
       <!-- 雲端同步測試大卡片 -->
       <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl shadow-md p-6 border border-slate-700">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-700/80 pb-4 mb-5">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-700/80 pb-4 mb-4">
           <div class="flex items-center gap-3">
             <div class="w-12 h-12 rounded-xl bg-indigo-600/30 border border-indigo-400/40 text-indigo-300 flex items-center justify-center text-2xl font-bold">
               <i class="fa-solid fa-cloud"></i>
@@ -896,10 +896,24 @@
             <button onclick="testCloudConnection()" id="btnRunSyncTest" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition flex items-center gap-2 shadow-md">
               <i class="fa-solid fa-bolt"></i> 執行雲端連線同步測試
             </button>
+            <button onclick="pullDataFromCloud()" class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl text-xs transition flex items-center gap-2 shadow-md">
+              <i class="fa-solid fa-cloud-arrow-down"></i> 從雲端讀取名冊
+            </button>
             <button onclick="forceManualCloudSync()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition flex items-center gap-2 shadow-md">
               <i class="fa-solid fa-rotate"></i> 強制推送本地至雲端
             </button>
           </div>
+        </div>
+
+        <!-- Google Apps Script 網頁應用程式 URL 設定列 -->
+        <div class="mb-4 bg-slate-800/90 p-3.5 rounded-xl border border-indigo-500/40 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <label class="text-xs font-bold text-indigo-200 shrink-0 flex items-center gap-1.5">
+            <i class="fa-solid fa-link"></i> GAS 雲端 API 網址：
+          </label>
+          <input type="url" id="cloudApiUrlInput" placeholder="請貼上 https://script.google.com/macros/s/.../exec" onchange="saveCloudApiUrl()" class="flex-grow bg-slate-900 border border-slate-600 rounded-lg px-3 py-1.5 text-xs text-white font-mono focus:ring-2 focus:ring-indigo-400 focus:outline-none">
+          <button onclick="saveCloudApiUrl(true)" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition shrink-0">
+            儲存網址
+          </button>
         </div>
 
         <!-- 雲端連線四項指標數據 -->
@@ -1620,6 +1634,20 @@
     /* ==========================================================================
        5. 雲端連線測試與同步模組 (Cloud Sync Tester)
        ========================================================================== */
+    let gasApiUrl = localStorage.getItem('FF_GAS_API_URL') || '';
+
+    function saveCloudApiUrl(showFeedback = false) {
+      const input = document.getElementById('cloudApiUrlInput');
+      if (input) {
+        gasApiUrl = input.value.trim();
+        localStorage.setItem('FF_GAS_API_URL', gasApiUrl);
+        if (showFeedback) {
+          showToast('已成功儲存 Google Apps Script API 網址！', 'success');
+          logSyncConsole(`已更新 GAS 串接端點: ${gasApiUrl ? gasApiUrl.substring(0, 45) + '...' : '(空白)'}`);
+        }
+      }
+    }
+
     function logSyncConsole(msg) {
       const consoleEl = document.getElementById('syncConsoleLog');
       if (consoleEl) {
@@ -1646,40 +1674,154 @@
       const diagChecksum = document.getElementById('diagChecksum');
       const diagLastTime = document.getElementById('diagLastSyncTime');
 
+      const urlToTest = gasApiUrl || OFFICIAL_DEFAULT_GAS_API;
+
+      if (!urlToTest) {
+        statusText.textContent = "尚未設定 API 網址";
+        badge.className = "px-2 py-0.5 rounded-full text-[11px] bg-amber-900/60 border border-amber-400/50 text-amber-300 flex items-center gap-1.5 transition";
+        diagStatus.innerHTML = '<span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span> 尚未設定 GAS 網址';
+        logSyncConsole("⚠ 請先於下方輸入並儲存 Google Apps Script 發布之 Web App 網址。");
+        showToast("請先在下方輸入 Google Apps Script Web App 網址", "warning");
+        return;
+      }
+
       statusText.textContent = "連線測試中...";
-      logSyncConsole("正在發起大隊核心雲端節點 Ping 探針...");
+      logSyncConsole(`正在向 GAS 發送 Ping 測試... [${urlToTest.slice(0, 40)}...]`);
 
       const startTime = performance.now();
+      try {
+        // 加入 redirect: "follow" 以支援 Google Apps Script 必要的 302 重新導向
+        const res = await fetch(`${urlToTest}?action=ping`, {
+          method: 'GET',
+          redirect: 'follow',
+          cache: 'no-store'
+        });
 
-      // 模擬連線往返延遲 (約 25~60ms 模擬公網/局域網)
-      await new Promise(resolve => setTimeout(resolve, 380));
-      const rtt = Math.round(performance.now() - startTime);
+        if (!res.ok) {
+          throw new Error(`伺服器回應 HTTP ${res.status} (${res.statusText})`);
+        }
 
-      diagLatency.textContent = `${rtt} ms`;
-      const currentCount = firefighterRecords.length;
-      const checksum = calculateDataChecksum(firefighterRecords);
+        const data = await res.json();
+        const rtt = Math.round(performance.now() - startTime);
 
-      diagSynced.textContent = `${currentCount} / ${currentCount} 筆`;
-      diagChecksum.textContent = checksum;
-      const nowStr = new Date().toLocaleTimeString('zh-TW');
-      diagLastTime.textContent = `最後同步: ${nowStr}`;
+        diagLatency.textContent = `${rtt} ms`;
+        const currentCount = firefighterRecords.length;
+        const checksum = calculateDataChecksum(firefighterRecords);
 
-      statusText.textContent = `雲端已同步 (${rtt}ms)`;
-      badge.className = "px-2 py-0.5 rounded-full text-[11px] bg-slate-900/60 hover:bg-slate-900 border border-emerald-400/50 text-emerald-300 flex items-center gap-1.5 transition";
+        diagSynced.textContent = `${currentCount} / ${currentCount} 筆`;
+        diagChecksum.textContent = checksum;
+        const nowStr = new Date().toLocaleTimeString('zh-TW');
+        diagLastTime.textContent = `最後連線: ${nowStr}`;
 
-      diagStatus.innerHTML = '<span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span> 核心連線極佳 (Online)';
-      logSyncConsole(`✔ Ping 回應成功！往返延遲: ${rtt}ms，雲端校驗碼 ${checksum} 一致，共 ${currentCount} 筆同仁體測資料正常同步。`);
-
-      showToast(`雲端連線同步測試成功！延遲: ${rtt}ms，${currentCount} 筆資料已校驗`, 'success');
+        statusText.textContent = `雲端已連線 (${rtt}ms)`;
+        badge.className = "px-2 py-0.5 rounded-full text-[11px] bg-slate-900/60 hover:bg-slate-900 border border-emerald-400/50 text-emerald-300 flex items-center gap-1.5 transition";
+        diagStatus.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span> ${data.message || '連線正常'}`;
+        logSyncConsole(`✔ Ping 成功！雙向延遲: ${rtt}ms，伺服節點: ${data.serverNode || 'Apps Script Engine'}`);
+        showToast(`雲端連線成功！延遲: ${rtt}ms`, 'success');
+      } catch (err) {
+        const rtt = Math.round(performance.now() - startTime);
+        diagLatency.textContent = `${rtt} ms`;
+        statusText.textContent = "雲端連線失敗";
+        badge.className = "px-2 py-0.5 rounded-full text-[11px] bg-red-900/60 border border-red-400/50 text-red-300 flex items-center gap-1.5 transition";
+        diagStatus.innerHTML = '<span class="w-2.5 h-2.5 rounded-full bg-red-400"></span> 連線失敗';
+        
+        // 詳細排錯指引記錄到 Console Log 視窗
+        logSyncConsole(`✖ 連線失敗 (${err.message})。`);
+        logSyncConsole(`💡 【排查三步驟】：`);
+        logSyncConsole(`1. 請在新分頁直接開啟此網址測試：<a href="${urlToTest}?action=ping" target="_blank" class="text-amber-300 underline">點此在新視窗開啟 Ping 探針</a>`);
+        logSyncConsole(`2. 若在新分頁看到「登入畫面」：表示部署權限被限制在機關網域內，請改用一般 Gmail 或將權限設為真正的「任何人」。`);
+        logSyncConsole(`3. 若曾修改 Code.gs：必須點「部署」>「管理部署作業」> 編輯 > 選擇「新版本(New version)」後重新部署。`);
+        showToast(`連線失敗: ${err.message}，請查看下方日誌除錯`, 'warning');
+      }
     }
 
-    function forceManualCloudSync() {
-      logSyncConsole("正在封裝本地名冊，強制推送至大隊備份節點...");
-      saveDataToLocalStorage();
-      setTimeout(() => {
-        testCloudConnection();
-        showToast("本地名冊已成功推播並鏡像備份至雲端！", "success");
-      }, 300);
+    async function pullDataFromCloud() {
+      const urlToUse = gasApiUrl || OFFICIAL_DEFAULT_GAS_API;
+      if (!urlToUse) {
+        showToast("請先設定 GAS 雲端 API 網址！", "warning");
+        return;
+      }
+      logSyncConsole("正在從 Google 試算表讀取所有名冊 (?action=read)...");
+      try {
+        const res = await fetch(`${urlToUse}?action=read`, {
+          method: 'GET',
+          redirect: 'follow',
+          cache: 'no-store'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        if (json.status !== "success") throw new Error(json.message || "讀取失敗");
+
+        if (!json.records || json.records.length === 0) {
+          logSyncConsole("ℹ 試算表目前尚無資料列。");
+          showToast("雲端試算表目前為空！", "info");
+          return;
+        }
+
+        let updateCount = 0;
+        let newCount = 0;
+        json.records.forEach(rec => {
+          const computed = computeFullRecord(rec);
+          const idx = firefighterRecords.findIndex(r => r.name === computed.name && r.unit === computed.unit && r.session === computed.session);
+          if (idx >= 0) {
+            firefighterRecords[idx] = computed;
+            updateCount++;
+          } else {
+            firefighterRecords.push(computed);
+            newCount++;
+          }
+        });
+
+        saveDataToLocalStorage();
+        renderStatsTable();
+        refreshSessionDataList();
+        logSyncConsole(`✔ 成功自 Google 試算表同步：更新 ${updateCount} 筆，新加入 ${newCount} 筆，本地總數達 ${firefighterRecords.length} 筆。`);
+        showToast(`雲端資料載入完成！更新 ${updateCount} 筆，新增 ${newCount} 筆`, 'success');
+      } catch (err) {
+        logSyncConsole(`✖ 讀取雲端資料失敗: ${err.message}`);
+        showToast(`讀取失敗: ${err.message}`, 'warning');
+      }
+    }
+
+    async function forceManualCloudSync() {
+      const urlToUse = gasApiUrl || OFFICIAL_DEFAULT_GAS_API;
+      if (!urlToUse) {
+        showToast("請先設定 GAS 雲端 API 網址！", "warning");
+        return;
+      }
+      if (firefighterRecords.length === 0) {
+        showToast("本地目前無資料可推送！", "warning");
+        return;
+      }
+
+      logSyncConsole(`正在推送本地 ${firefighterRecords.length} 筆名冊至 Google 試算表 (POST)...`);
+      try {
+        // 使用 text/plain 避免觸發 OPTIONS preflight 導致 CORS 攔截
+        const payload = {
+          operator: "第四大隊網頁端操作員",
+          records: firefighterRecords
+        };
+
+        const res = await fetch(urlToUse, {
+          method: "POST",
+          redirect: "follow",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        if (json.status === "success") {
+          logSyncConsole(`✔ ${json.message} (新增 ${json.inserted}，更新 ${json.updated})`);
+          showToast(json.message, "success");
+          testCloudConnection();
+        } else {
+          throw new Error(json.message || "雲端未回傳成功訊息");
+        }
+      } catch (err) {
+        logSyncConsole(`✖ 推送失敗: ${err.message}`);
+        showToast(`推送失敗: ${err.message}`, 'warning');
+      }
     }
 
     /* ==========================================================================
@@ -2436,12 +2578,21 @@
     window.onload = function() {
       const hasLocal = loadDataFromLocalStorage();
       populateUnitDropdowns();
+      
+      // 載入已儲存的 GAS API 網址
+      const apiUrlInput = document.getElementById('cloudApiUrlInput');
+      if (apiUrlInput && gasApiUrl) {
+        apiUrlInput.value = gasApiUrl;
+      }
+
       if (!hasLocal) {
         loadSampleData(false);
       }
       updateFormAndCalc();
       renderNormTableViewer();
-      testCloudConnection();
+      if (gasApiUrl) {
+        testCloudConnection();
+      }
       switchTab('single');
     };
   </script>
