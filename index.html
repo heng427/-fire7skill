@@ -1,0 +1,3242 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>消防人員常年訓練體能測驗紀錄與常模分析系統</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Chart.js for Radar & Bar charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- SheetJS for Excel batch import/export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background-color: #cbd5e1;
+      border-radius: 9999px;
+    }
+    /* 列印與 PDF 匯出專用樣式 */
+    @media print {
+      header, #tabSingle, #tabCompare, #tabStats, #tabBatch, #reportControlBar, #toast {
+        display: none !important;
+      }
+      #tabReport {
+        display: block !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      #printablePersonalReport {
+        box-shadow: none !important;
+        border: none !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      body {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- 系統頂部導覽列 -->
+  <header class="bg-gradient-to-r from-red-700 via-red-800 to-amber-700 text-white shadow-lg sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 py-3 sm:px-6 flex flex-wrap justify-between items-center gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="bg-white/10 p-2.5 rounded-xl backdrop-blur-sm border border-white/20">
+          <i class="fa-solid fa-fire-flame-curved text-2xl text-amber-300"></i>
+        </div>
+        <div>
+          <h1 class="text-xl sm:text-2xl font-bold tracking-tight">消防人員常訓體能測驗系統</h1>
+          <p class="text-xs text-red-100 flex items-center gap-2">
+            <span>內政部消防署新式體能常模標準</span>
+            <span class="bg-red-900/60 text-amber-200 px-2 py-0.5 rounded text-[10px] border border-amber-300/30">滿分100分制 · 第四大隊</span>
+          </p>
+        </div>
+      </div>
+      <!-- 五大主要功能頁籤按鈕 -->
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="navSingleBtn" onclick="switchTab('single')" class="px-3 py-1.5 rounded-lg text-sm font-medium transition bg-white/20 text-white shadow-sm flex items-center gap-1.5">
+          <i class="fa-solid fa-user-plus"></i> 個人測驗登錄
+        </button>
+        <button id="navCompareBtn" onclick="switchTab('compare')" class="px-3 py-1.5 rounded-lg text-sm font-medium transition text-red-100 hover:bg-white/10 flex items-center gap-1.5">
+          <i class="fa-solid fa-scale-balanced"></i> 個人與單位/年齡對照
+        </button>
+        <button id="navReportBtn" onclick="switchTab('report')" class="px-3 py-1.5 rounded-lg text-sm font-medium transition text-red-100 hover:bg-white/10 flex items-center gap-1.5">
+          <i class="fa-solid fa-file-invoice"></i> 個人報告與PDF匯出
+        </button>
+        <button id="navStatsBtn" onclick="switchTab('stats')" class="px-3 py-1.5 rounded-lg text-sm font-medium transition text-red-100 hover:bg-white/10 flex items-center gap-1.5">
+          <i class="fa-solid fa-chart-pie"></i> 戰術常模與大隊統計
+        </button>
+        <button id="navBatchBtn" onclick="switchTab('batch')" class="px-3 py-1.5 rounded-lg text-sm font-medium transition text-red-100 hover:bg-white/10 flex items-center gap-1.5">
+          <i class="fa-solid fa-file-excel"></i> Excel批次作業
+        </button>
+        <!-- Google Apps Script 雲端同步按鈕與連線指示 -->
+        <div class="flex items-center gap-1.5 bg-black/30 px-2.5 py-1 rounded-lg border border-white/20 ml-1">
+          <span id="gasStatusDot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
+          <button onclick="syncDataFromGAS()" title="從 Google 試算表拉取最新名冊與成績" class="text-xs text-amber-200 hover:text-white flex items-center gap-1 font-semibold">
+            <i class="fa-solid fa-cloud-arrow-down"></i> 雲端讀取
+          </button>
+          <span class="text-white/40">|</span>
+          <button onclick="pushAllDataToGAS()" title="將現有名冊全量備份至 Google 試算表" class="text-xs text-emerald-200 hover:text-white flex items-center gap-1 font-semibold">
+            <i class="fa-solid fa-cloud-arrow-up"></i> 雲端同步
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex-grow w-full">
+
+    <!-- TAB 1: 單人成績登錄與個人對照表 -->
+    <section id="tabSingle" class="block space-y-6">
+      <!-- 單位及個人基本資料輸入 -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-6 transition hover:shadow-md">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+          <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <span class="w-2.5 h-6 bg-red-600 rounded-full inline-block"></span>
+            同仁基本資料與體位資訊
+          </h2>
+          <span class="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-mono">
+            BMI 即時連動計算
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <!-- 單位選單 (第四大隊 20 個單位) -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">所屬分隊 / 單位</label>
+            <select id="inputUnit" onchange="updateFormAndCalc()" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:outline-none font-medium">
+              <!-- 動態由 JavaScript 載入 -->
+            </select>
+          </div>
+
+          <!-- 姓名 -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">受測同仁姓名</label>
+            <input type="text" id="inputName" value="陳建宏" placeholder="例如：陳建宏" oninput="updateFormAndCalc()" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:outline-none font-medium">
+          </div>
+
+          <!-- 測驗期別 / 梯次 (支援文字直接鍵入與快捷下拉) -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1 flex items-center justify-between">
+              <span>測驗期別 / 梯次</span>
+              <span class="text-[10px] text-slate-400">可自由鍵入</span>
+            </label>
+            <input type="text" id="inputSession" list="sessionDataList" value="115年上半年" oninput="handleSessionInput()" placeholder="可直接輸入期別..." class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:outline-none font-medium text-slate-700">
+            <datalist id="sessionDataList">
+              <option value="115年上半年"></option>
+              <option value="115年下半年"></option>
+              <option value="116年上半年"></option>
+              <option value="116年下半年"></option>
+              <option value="115年第1次"></option>
+              <option value="115年第2次"></option>
+              <option value="115年第3次"></option>
+              <option value="116年第1次"></option>
+              <option value="116年第2次"></option>
+              <option value="116年第3次"></option>
+            </datalist>
+          </div>
+
+          <!-- 生理性別 -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">生理性別</label>
+            <select id="inputGender" onchange="updateFormAndCalc()" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:outline-none font-medium">
+              <option value="male">男性</option>
+              <option value="female">女性</option>
+            </select>
+          </div>
+
+          <!-- 年齡 -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">實際年齡 (歲)</label>
+            <input type="number" id="inputAge" value="27" min="18" max="65" oninput="updateFormAndCalc()" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:outline-none font-semibold">
+          </div>
+
+          <!-- 身高與體重 -->
+          <div class="sm:col-span-2 md:col-span-1 lg:col-span-1">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">身高(cm)</label>
+                <input type="number" id="inputHeight" value="178" min="120" max="220" oninput="calculateBMI()" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">體重(kg)</label>
+                <input type="number" id="inputWeight" value="74" min="35" max="180" step="0.5" oninput="calculateBMI()" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:outline-none">
+              </div>
+            </div>
+            <div id="bmiBadge" class="mt-1 text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-center">
+              BMI 23.4 (正常)
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-3 flex flex-wrap items-center justify-between text-xs text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-200 gap-2">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-circle-info text-blue-500"></i>
+            <span>目前對照常模級距：</span>
+            <span id="currentNormGroupText" class="font-bold text-red-600">男性 20~29歲 (附件二之一)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span>合格門檻標準：</span>
+            <span class="font-bold text-slate-700">滿分100分（常模及格基準 50分 / 116年起升為 60分）</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- 左側：七項測驗成績輸入表 -->
+        <div class="lg:col-span-7 space-y-4">
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-6">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+              <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                <i class="fa-solid fa-dumbbell text-red-600"></i> 七項新式常訓測驗項目輸入
+              </h3>
+              <button onclick="fillSampleRecord()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded transition">
+                <i class="fa-solid fa-wand-magic-sparkles mr-1"></i>帶入示範成績
+              </button>
+            </div>
+
+            <div class="space-y-3.5">
+              <!-- 1. 立定跳遠 (滿分10分) -->
+              <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 hover:border-red-300 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-red-100 text-red-700 flex items-center justify-center font-bold text-sm shrink-0">1</div>
+                  <div>
+                    <h4 class="text-sm font-bold text-slate-800">立定跳遠 (公分 cm)</h4>
+                    <p class="text-xs text-slate-500">爆發力檢測，取3次最佳值 (滿分10分)</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3">
+                  <div class="relative w-32">
+                    <input type="number" id="t_jump" value="245" min="50" max="350" oninput="updateFormAndCalc()" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-sm text-right pr-9 font-semibold">
+                    <span class="absolute right-2.5 top-2 text-xs text-slate-400">cm</span>
+                  </div>
+                  <div class="w-20 text-right">
+                    <span id="score_jump" class="text-base font-black text-red-600">8</span>
+                    <span class="text-xs text-slate-500">/10分</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 2. 後拋擲遠 (滿分15分) -->
+              <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 hover:border-red-300 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-sm shrink-0">2</div>
+                  <div>
+                    <h4 class="text-sm font-bold text-slate-800">後拋擲遠 (公尺 m)</h4>
+                    <p class="text-xs text-slate-500">2公斤硬式藥球過頭後拋 (滿分15分)</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3">
+                  <div class="relative w-32">
+                    <input type="number" id="t_throw" value="14.5" step="0.1" min="1" max="25" oninput="updateFormAndCalc()" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-sm text-right pr-8 font-semibold">
+                    <span class="absolute right-2.5 top-2 text-xs text-slate-400">m</span>
+                  </div>
+                  <div class="w-20 text-right">
+                    <span id="score_throw" class="text-base font-black text-red-600">11</span>
+                    <span class="text-xs text-slate-500">/15分</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 3. 6公尺30秒折返跑 (滿分10分) -->
+              <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 hover:border-red-300 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm shrink-0">3</div>
+                  <div>
+                    <h4 class="text-sm font-bold text-slate-800">6公尺30秒折返跑 (趟數)</h4>
+                    <p class="text-xs text-slate-500">敏捷度與短距折返衝刺 (滿分10分)</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3">
+                  <div class="relative w-32">
+                    <input type="number" id="t_shuttle" value="14" min="1" max="30" oninput="updateFormAndCalc()" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-sm text-right pr-9 font-semibold">
+                    <span class="absolute right-2.5 top-2 text-xs text-slate-400">趟</span>
+                  </div>
+                  <div class="w-20 text-right">
+                    <span id="score_shuttle" class="text-base font-black text-red-600">8</span>
+                    <span class="text-xs text-slate-500">/10分</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 4. 菱形槓硬舉 (滿分20分) -->
+              <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 hover:border-red-300 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm shrink-0">4</div>
+                  <div>
+                    <h4 class="text-sm font-bold text-slate-800">菱形槓硬舉 (公斤 kg)</h4>
+                    <p class="text-xs text-slate-500">下肢與核心絕對最大肌力 (滿分20分)</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3">
+                  <div class="relative w-32">
+                    <input type="number" id="t_deadlift" value="135" min="20" max="250" step="5" oninput="updateFormAndCalc()" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-sm text-right pr-8 font-semibold">
+                    <span class="absolute right-2.5 top-2 text-xs text-slate-400">kg</span>
+                  </div>
+                  <div class="w-20 text-right">
+                    <span id="score_deadlift" class="text-base font-black text-red-600">16</span>
+                    <span class="text-xs text-slate-500">/20分</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 5. 懸吊屈體 (滿分15分，女性支援屈臂懸垂秒數替代) -->
+              <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 hover:border-red-300 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-sm shrink-0">5</div>
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <h4 class="text-sm font-bold text-slate-800" id="pullupTitle">懸吊屈體 (次數)</h4>
+                      <span id="pullupAltBadge" class="hidden text-[10px] bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded">女性可採屈臂懸垂</span>
+                    </div>
+                    <p class="text-xs text-slate-500" id="pullupHint">雙膝碰手肘捲腹完成次數 (滿分15分)</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3">
+                  <div id="femalePullupSwitch" class="hidden">
+                    <select id="femalePullupType" onchange="updateFormAndCalc()" class="text-xs bg-white border border-slate-300 rounded-lg px-2 py-1.5 font-medium">
+                      <option value="rep">屈體次數</option>
+                      <option value="sec">屈臂懸垂(秒)</option>
+                    </select>
+                  </div>
+                  <div class="relative w-32">
+                    <input type="number" id="t_hang" value="12" min="0" max="50" oninput="updateFormAndCalc()" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-sm text-right pr-9 font-semibold">
+                    <span id="hangUnitText" class="absolute right-2.5 top-2 text-xs text-slate-400">次</span>
+                  </div>
+                  <div class="w-20 text-right">
+                    <span id="score_hang" class="text-base font-black text-red-600">11</span>
+                    <span class="text-xs text-slate-500">/15分</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 6. 負重行走 (滿分10分) -->
+              <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 hover:border-red-300 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-orange-100 text-orange-700 flex items-center justify-center font-bold text-sm shrink-0">6</div>
+                  <div>
+                    <h4 class="text-sm font-bold text-slate-800">負重行走 (菱形槓重量 kg)</h4>
+                    <p class="text-xs text-slate-500">連續移動20公尺中途不落地 (滿分10分)</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3">
+                  <div class="relative w-32">
+                    <input type="number" id="t_carry" value="145" min="30" max="250" step="5" oninput="updateFormAndCalc()" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-sm text-right pr-8 font-semibold">
+                    <span class="absolute right-2.5 top-2 text-xs text-slate-400">kg</span>
+                  </div>
+                  <div class="w-20 text-right">
+                    <span id="score_carry" class="text-base font-black text-red-600">8</span>
+                    <span class="text-xs text-slate-500">/10分</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 7. 1500公尺跑走 / Beep Test (滿分20分) -->
+              <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 hover:border-red-300 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center font-bold text-sm shrink-0">7</div>
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <h4 class="text-sm font-bold text-slate-800">1500公尺跑走 / Beep Test</h4>
+                      <select id="runModeSelect" onchange="toggleRunMode()" class="text-[11px] bg-slate-200/70 border border-slate-300 rounded px-1.5 py-0.5">
+                        <option value="time">時間 (分:秒)</option>
+                        <option value="beep">Beep Test 階級</option>
+                      </select>
+                    </div>
+                    <p class="text-xs text-slate-500">心肺戰術耐力 (滿分20分)</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3">
+                  <!-- 時間輸入模式 -->
+                  <div id="runTimeInputWrapper" class="flex items-center gap-1 w-36">
+                    <input type="number" id="t_run_min" value="7" min="3" max="25" oninput="updateFormAndCalc()" placeholder="分" class="w-16 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-right font-semibold">
+                    <span class="text-xs text-slate-500">分</span>
+                    <input type="number" id="t_run_sec" value="15" min="0" max="59" oninput="updateFormAndCalc()" placeholder="秒" class="w-16 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-right font-semibold">
+                    <span class="text-xs text-slate-500">秒</span>
+                  </div>
+                  <!-- Beep Test 輸入模式 -->
+                  <div id="runBeepInputWrapper" class="hidden w-36">
+                    <input type="text" id="t_beep" placeholder="如 5-1" oninput="updateFormAndCalc()" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-sm text-center font-semibold">
+                  </div>
+                  <div class="w-20 text-right">
+                    <span id="score_run" class="text-base font-black text-red-600">13</span>
+                    <span class="text-xs text-slate-500">/20分</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 操作按鈕列 -->
+            <div class="mt-6 flex flex-wrap gap-3 justify-end pt-3 border-t border-slate-100">
+              <button onclick="resetCurrentForm()" class="px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-sm font-medium transition">
+                <i class="fa-solid fa-rotate-left mr-1"></i> 清空重填
+              </button>
+              <button onclick="saveCurrentRecord()" class="px-4 py-2 bg-slate-800 text-white hover:bg-slate-900 rounded-xl text-sm font-bold shadow-md transition flex items-center gap-2">
+                <i class="fa-solid fa-floppy-disk"></i> 儲存至本機名冊
+              </button>
+              <button id="submitBtn" onclick="submitFitnessData()" class="px-5 py-2 bg-red-600 text-white hover:bg-red-700 rounded-xl text-sm font-bold shadow-md shadow-red-200 transition flex items-center gap-2">
+                <i class="fa-solid fa-paper-plane"></i> 送出成績至試算表
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右側：個人成績綜合卡片與常模對照雷達圖 -->
+        <div class="lg:col-span-5 space-y-5">
+          <!-- 總分卡片 -->
+          <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl shadow-lg p-6 relative overflow-hidden">
+            <div class="absolute -right-6 -bottom-6 text-slate-700 opacity-20 pointer-events-none">
+              <i class="fa-solid fa-shield-halved text-9xl"></i>
+            </div>
+            
+            <div class="relative z-10">
+              <div class="flex justify-between items-start">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-amber-400">Individual Overall Score</span>
+                    <span id="cardSessionTag" class="text-[10px] bg-slate-700/80 text-amber-200 px-2 py-0.5 rounded-full border border-slate-600">115年上半年</span>
+                  </div>
+                  <h3 class="text-2xl font-black text-white mt-1" id="cardName">陳建宏 同仁</h3>
+                  <p class="text-xs text-slate-300" id="cardSubtitle">第四大隊劍潭分隊 (27歲 男性)</p>
+                </div>
+                <div id="cardStatusBadge" class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
+                  <i class="fa-solid fa-check mr-1"></i>常規合格
+                </div>
+              </div>
+
+              <div class="mt-5 flex items-baseline justify-between">
+                <div class="flex items-baseline gap-2">
+                  <span class="text-5xl font-black tracking-tight text-white" id="cardTotalScore">75</span>
+                  <span class="text-slate-400 font-bold">/ 100 總分</span>
+                </div>
+                <!-- 與前次測驗成長對照標籤 -->
+                <div id="progressCompareBadge" class="flex flex-col items-end">
+                  <span class="text-[10px] text-slate-400">與前次測驗成長對照</span>
+                  <div id="progressDiffPill" class="text-xs font-black px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 flex items-center gap-1 mt-0.5">
+                    <i class="fa-solid fa-clock-rotate-left"></i> 尚無前次紀錄
+                  </div>
+                </div>
+              </div>
+
+              <!-- 常模及格判定進度條 -->
+              <div class="mt-4">
+                <div class="flex justify-between text-xs text-slate-300 mb-1">
+                  <span>常模門檻達成進度 (現行50分 / 116年起60分)</span>
+                  <span id="cardPassPercentText" class="font-bold text-amber-300">150%</span>
+                </div>
+                <div class="w-full bg-slate-700 h-2.5 rounded-full overflow-hidden">
+                  <div id="cardProgressBar" class="bg-gradient-to-r from-amber-400 to-emerald-400 h-full rounded-full transition-all duration-500" style="width: 75%;"></div>
+                </div>
+              </div>
+
+              <!-- 兩次測驗細項消長矩陣 (有前次資料時自動展開) -->
+              <div id="itemDiffContainer" class="mt-4 pt-3 border-t border-slate-700/80 hidden">
+                <div class="flex items-center justify-between text-[11px] text-slate-300 mb-2">
+                  <span class="font-bold text-amber-300 flex items-center gap-1">
+                    <i class="fa-solid fa-chart-line"></i> 七項測驗消長細節
+                  </span>
+                  <span id="prevSessionDateText" class="text-slate-400">基準梯次：-</span>
+                </div>
+                <div id="itemDiffGrid" class="grid grid-cols-4 sm:grid-cols-7 gap-1.5 text-center">
+                  <!-- 動態注入各項消長指標 -->
+                </div>
+              </div>
+
+              <!-- 年齡層百分位數預估與均分 -->
+              <div class="mt-4 pt-3 border-t border-slate-700/80 grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span class="text-slate-400 block text-[11px]">同齡常模相對落點</span>
+                  <span class="font-bold text-emerald-400 text-sm" id="cardPeerRankText">高於同齡組中位數</span>
+                </div>
+                <div>
+                  <span class="text-slate-400 block text-[11px]">總分標準化達成率</span>
+                  <span class="font-bold text-white text-sm" id="cardAverageItemScore">75% (滿分100分)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 七向度雷達圖卡片 (雙軌重疊：本次 vs 前次) -->
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+            <div class="flex justify-between items-center mb-2">
+              <h4 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <i class="fa-solid fa-chart-radar text-red-600"></i> 七項戰術體能達成率雷達圖
+              </h4>
+              <span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded">各項 0~100% 標竿</span>
+            </div>
+            <div class="h-64 w-full relative flex items-center justify-center">
+              <canvas id="radarChart"></canvas>
+            </div>
+            <p class="text-[11px] text-slate-500 text-center mt-2" id="radarLegendHint">
+              紅線：個人實測項目達成率(%)；灰虛線：同齡組平均水準
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: 個人成績 vs 單位/年齡層基準對照分析模組 -->
+    <section id="tabCompare" class="hidden space-y-6">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-6">
+        <div class="border-b border-slate-100 pb-4 mb-5">
+          <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-scale-balanced text-red-600"></i>
+            單一同仁成績與單位／年齡層常模落點比較
+          </h2>
+          <p class="text-xs text-slate-500 mt-1">
+            選取一位受測同仁，自由對照「特定消防分隊整體平均」、「特定年齡層常模水平（平均/中位數）」或「大隊全體基準」，檢視其在群體戰術體能中的落點優勢與強化方向。
+          </p>
+        </div>
+
+        <!-- 選擇列：左邊選同仁，右邊選比較基準 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+          <!-- 步驟一：選擇同仁 -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+              <span class="w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center text-[11px]">1</span>
+              選取受測同仁紀錄：
+            </label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <select id="benchmarkTargetPerson" onchange="runBenchmarkComparison()" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold focus:ring-2 focus:ring-red-500 focus:outline-none">
+                <!-- 動態注入同仁名單 -->
+              </select>
+              <select id="benchmarkPersonSessionFilter" onchange="filterBenchmarkPersonOptions()" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-600 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                <option value="ALL">全部梯次期別</option>
+              </select>
+            </div>
+            <div id="benchmarkPersonSummary" class="mt-2 text-xs text-slate-500">
+              <!-- 人員基本資料摘要 -->
+            </div>
+          </div>
+
+          <!-- 步驟二：選擇比較基準 (單位 或 年齡層) -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+              <span class="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[11px]">2</span>
+              選取欲對照的基準線（單位／年齡層）：
+            </label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <select id="benchmarkTypeSelect" onchange="handleBenchmarkTypeChange()" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                  <option value="unit">對照單位整體平均</option>
+                  <option value="group">對照特定年齡層常模</option>
+                  <option value="passLine">對照常模及格門檻 (50分/60分)</option>
+                </select>
+              </div>
+              <div id="benchmarkTargetWrapper">
+                <select id="benchmarkSubSelect" onchange="runBenchmarkComparison()" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                  <!-- 動態載入單位或年齡 -->
+                </select>
+              </div>
+            </div>
+            <div id="benchmarkTargetSummary" class="mt-2 text-xs text-slate-500">
+              <!-- 基準摘要 -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 比較結果展示區塊 -->
+        <div id="benchmarkResultContainer" class="space-y-6">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="bg-red-50/70 border border-red-200 p-4 rounded-xl">
+              <span class="text-xs font-bold text-red-700 block">個人實測總成績</span>
+              <div class="flex items-baseline gap-2 mt-1">
+                <span id="bmPersonScoreText" class="text-3xl font-black text-red-600">0</span>
+                <span class="text-xs text-red-400 font-semibold">/ 100 滿分</span>
+              </div>
+              <span id="bmPersonPassBadge" class="inline-block mt-1 text-[11px] font-bold px-2 py-0.5 rounded bg-red-100 text-red-800">
+                -
+              </span>
+            </div>
+
+            <div class="bg-blue-50/70 border border-blue-200 p-4 rounded-xl">
+              <span class="text-xs font-bold text-blue-700 block" id="bmTargetTitleText">對照基準平均</span>
+              <div class="flex items-baseline gap-2 mt-1">
+                <span id="bmTargetScoreText" class="text-3xl font-black text-blue-600">0</span>
+                <span class="text-xs text-blue-400 font-semibold">/ 100 滿分</span>
+              </div>
+              <span id="bmTargetDescText" class="inline-block mt-1 text-[11px] text-blue-800">
+                -
+              </span>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col justify-between">
+              <span class="text-xs font-bold text-slate-600 block">相對領先／落後幅度</span>
+              <div class="flex items-baseline gap-1 mt-1">
+                <span id="bmDiffScoreText" class="text-3xl font-black text-slate-800">+0.0</span>
+                <span class="text-xs text-slate-500">分</span>
+              </div>
+              <span id="bmDiffDescText" class="text-[11px] text-slate-500 font-medium">
+                -
+              </span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- 左側：個人 vs 基準 雙軌雷達圖 -->
+            <div class="lg:col-span-5 bg-slate-50/70 p-4 rounded-2xl border border-slate-200 flex flex-col items-center justify-center">
+              <div class="w-full flex justify-between items-center mb-2">
+                <h3 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                  <i class="fa-solid fa-chart-radar text-red-600"></i> 七項戰術體能落點達成率 (%)
+                </h3>
+                <span class="text-[10px] text-slate-500">標準化 0~100%</span>
+              </div>
+              <div class="relative w-full h-72">
+                <canvas id="benchmarkRadarChart"></canvas>
+              </div>
+              <div class="flex items-center justify-center gap-6 mt-3 text-xs font-bold">
+                <div class="flex items-center gap-1.5 text-red-600">
+                  <span class="w-3.5 h-3.5 rounded-full bg-red-600 inline-block"></span>
+                  <span id="bmLegendPersonLabel">受測同仁實測</span>
+                </div>
+                <div class="flex items-center gap-1.5 text-blue-600">
+                  <span class="w-3.5 h-3.5 rounded-full bg-blue-600 inline-block"></span>
+                  <span id="bmLegendTargetLabel">所選對照基準</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 右側：七項指標詳細對比表與智慧診斷 -->
+            <div class="lg:col-span-7 space-y-4">
+              <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                <table class="w-full text-xs text-left" id="benchmarkTable">
+                  <!-- 動態生成七項對照資料列 -->
+                </table>
+              </div>
+
+              <div class="bg-amber-50/80 border border-amber-200/80 p-4 rounded-xl">
+                <h4 class="text-xs font-bold text-amber-900 flex items-center gap-1.5 mb-2">
+                  <i class="fa-solid fa-user-check text-amber-600"></i>
+                  戰術體能診斷與強化建議
+                </h4>
+                <div id="benchmarkSummaryNotes" class="text-xs text-amber-950 space-y-1.5 leading-relaxed">
+                  <!-- 動態注入評語 -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: 個人專屬報告與 PDF 匯出模組 -->
+    <section id="tabReport" class="hidden space-y-6">
+      <div id="reportControlBar" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-file-contract text-red-600"></i>
+              受測同仁個別報告篩選與 PDF 列印匯出
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">
+              可依單位、測驗梯次快速篩選同仁，即時產出個人戰術體適能診斷報告書並輸出為標準 A4 PDF。
+            </p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2.5">
+            <select id="reportFilterUnit" onchange="filterReportFirefighters()" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-medium">
+              <option value="ALL">全部單位</option>
+            </select>
+            <select id="reportFilterSession" onchange="filterReportFirefighters()" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-medium">
+              <option value="ALL">全部梯次</option>
+            </select>
+            <select id="reportPersonSelect" onchange="renderPersonalReport()" class="text-xs bg-white border-2 border-red-500 font-bold text-red-700 rounded-lg px-3 py-2">
+              <!-- 動態載入同仁清單 -->
+            </select>
+            <button onclick="printPersonalReport()" class="text-xs bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-lg transition shadow-md shadow-red-200 flex items-center gap-2">
+              <i class="fa-solid fa-file-pdf"></i> 列印 / 另存為 PDF
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 可列印之個人 A4 戰術體能報告書本體 -->
+      <div id="printablePersonalReport" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8 max-w-5xl mx-auto space-y-6">
+        <!-- 表頭抬頭 -->
+        <div class="border-b-2 border-red-700 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div class="flex items-center gap-3.5">
+            <div class="w-12 h-12 rounded-xl bg-red-600 text-white flex items-center justify-center text-2xl font-bold shadow-sm">
+              <i class="fa-solid fa-shield-heart"></i>
+            </div>
+            <div>
+              <div class="text-xs font-bold text-red-700 tracking-wider">臺北市政府消防局第四救災救護大隊</div>
+              <h1 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">常年訓練體適能測驗評估與處方診斷書</h1>
+              <p class="text-[11px] text-slate-500">依據內政部消防署新式體能常模標準核定 (滿分100分)</p>
+            </div>
+          </div>
+          <div class="text-right text-xs text-slate-500">
+            <div class="font-mono">報告編號：<span id="repDocId" class="font-bold text-slate-800">FF-115-001</span></div>
+            <div>測驗梯次：<span id="repSessionText" class="font-bold text-red-600">115年上半年</span></div>
+          </div>
+        </div>
+
+        <!-- 基本個資與體位 -->
+        <div class="grid grid-cols-2 sm:grid-cols-6 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
+          <div>
+            <span class="text-slate-500 block text-[11px]">受測同仁</span>
+            <span id="repName" class="font-black text-slate-900 text-base">陳建宏</span>
+          </div>
+          <div>
+            <span class="text-slate-500 block text-[11px]">服務單位</span>
+            <span id="repUnit" class="font-bold text-slate-800 text-sm">第四大隊劍潭分隊</span>
+          </div>
+          <div>
+            <span class="text-slate-500 block text-[11px]">生理性別 / 年齡</span>
+            <span id="repGenderAge" class="font-bold text-slate-800 text-sm">男 / 27歲</span>
+          </div>
+          <div>
+            <span class="text-slate-500 block text-[11px]">身高 / 體重</span>
+            <span id="repHeightWeight" class="font-bold text-slate-800 text-sm">178cm / 74kg</span>
+          </div>
+          <div>
+            <span class="text-slate-500 block text-[11px]">身體質量指數 (BMI)</span>
+            <span id="repBMI" class="font-bold text-slate-800 text-sm">23.4 (正常)</span>
+          </div>
+          <div>
+            <span class="text-slate-500 block text-[11px]">常模級距組別</span>
+            <span id="repNormGroup" class="font-bold text-red-700 text-xs">男性 20~29歲</span>
+          </div>
+        </div>
+
+        <!-- 總分判定與排名落點大看板 -->
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-4 rounded-xl relative overflow-hidden flex flex-col justify-between">
+            <span class="text-xs font-semibold text-slate-400">總實測成績</span>
+            <div class="flex items-baseline gap-1 mt-1">
+              <span id="repTotalScore" class="text-4xl font-black text-amber-400">75</span>
+              <span class="text-xs text-slate-300">/ 100 滿分</span>
+            </div>
+            <div id="repPassBadge" class="mt-2 text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-center">
+              合格 (門檻 50 分)
+            </div>
+          </div>
+
+          <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col justify-between">
+            <span class="text-xs font-semibold text-slate-500">大隊總排名</span>
+            <div class="flex items-baseline gap-1 mt-1">
+              <span id="repTotalRank" class="text-3xl font-black text-slate-800">第 1 名</span>
+              <span id="repTotalCountText" class="text-xs text-slate-400">/ 共 60 人</span>
+            </div>
+            <span id="repRankPercentile" class="text-[11px] font-bold text-emerald-600 mt-1">領先 98% 同儕 (約 P98)</span>
+          </div>
+
+          <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col justify-between">
+            <span class="text-xs font-semibold text-slate-500">同齡組中位數對照</span>
+            <div class="flex items-baseline gap-1 mt-1">
+              <span id="repPeerDiff" class="text-3xl font-black text-blue-600">+18.0</span>
+              <span class="text-xs text-slate-500">分</span>
+            </div>
+            <span id="repPeerMedianText" class="text-[11px] text-slate-500 mt-1">同齡中位數：57.0 分</span>
+          </div>
+
+          <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col justify-between">
+            <span class="text-xs font-semibold text-slate-500">相較前次測驗消長</span>
+            <div class="flex items-baseline gap-1 mt-1">
+              <span id="repGrowthScore" class="text-3xl font-black text-emerald-600">+8</span>
+              <span class="text-xs text-slate-500">分</span>
+            </div>
+            <span id="repPrevSessionText" class="text-[11px] text-slate-500 mt-1">基準梯次：115年上半年</span>
+          </div>
+        </div>
+
+        <!-- 兩欄配置：左側七項實測排名表，右側戰術雷達圖 -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div class="lg:col-span-7 space-y-4">
+            <h3 class="text-sm font-bold text-slate-800 flex items-center justify-between border-b pb-2">
+              <span class="flex items-center gap-1.5"><i class="fa-solid fa-list-check text-red-600"></i> 七項戰術體能細項成績與大隊單項排名</span>
+              <span class="text-[11px] text-slate-400 font-normal">依官方常模折算</span>
+            </h3>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-200">
+              <table class="w-full text-xs text-left" id="repItemTable">
+                <thead class="bg-slate-100 text-slate-700">
+                  <tr>
+                    <th class="py-2.5 px-3">測驗項目</th>
+                    <th class="py-2.5 px-2 text-center">實測成績</th>
+                    <th class="py-2.5 px-2 text-center">換算得分</th>
+                    <th class="py-2.5 px-2 text-center">單項排名</th>
+                    <th class="py-2.5 px-2 text-center">與前次增減</th>
+                    <th class="py-2.5 px-2 text-center">達成率</th>
+                  </tr>
+                </thead>
+                <tbody id="repItemTableBody" class="divide-y divide-slate-100">
+                  <!-- 動態注入七項資料 -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 右側雷達圖 -->
+          <div class="lg:col-span-5 bg-slate-50/70 p-4 rounded-xl border border-slate-200 flex flex-col justify-between">
+            <div>
+              <h3 class="text-sm font-bold text-slate-800 flex items-center justify-between border-b pb-2 mb-2">
+                <span class="flex items-center gap-1.5"><i class="fa-solid fa-chart-radar text-red-600"></i> 戰術體能七向度達成率 (%)</span>
+                <span class="text-[10px] text-slate-400">標準化 0~100%</span>
+              </h3>
+              <div class="relative w-full h-64">
+                <canvas id="reportRadarChart"></canvas>
+              </div>
+            </div>
+            <div class="text-[11px] text-slate-500 text-center mt-2 flex justify-center gap-4 font-semibold">
+              <span class="text-red-600">● 實測達成率</span>
+              <span class="text-blue-600">● 大隊同齡平均水平</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 智能處方與建議 -->
+        <div class="bg-amber-50/80 border border-amber-200 p-4 rounded-xl">
+          <h4 class="text-xs font-bold text-amber-900 flex items-center gap-1.5 mb-2">
+            <i class="fa-solid fa-dumbbell text-amber-700"></i>
+            體技教官個人化戰術體能診斷與處方建議
+          </h4>
+          <div id="repPrescriptionNotes" class="text-xs text-amber-950 space-y-1.5 leading-relaxed">
+            <!-- 動態生成訓練處方 -->
+          </div>
+        </div>
+
+        <!-- 簽核欄位 -->
+        <div class="pt-6 border-t border-slate-200 grid grid-cols-3 gap-6 text-xs text-slate-600">
+          <div class="border-b border-dashed border-slate-400 pb-4">
+            <span class="text-slate-400 block text-[11px]">受測同仁簽章：</span>
+            <div class="h-6"></div>
+          </div>
+          <div class="border-b border-dashed border-slate-400 pb-4">
+            <span class="text-slate-400 block text-[11px]">分隊承辦 / 體能教官簽章：</span>
+            <div class="h-6"></div>
+          </div>
+          <div class="border-b border-dashed border-slate-400 pb-4">
+            <span class="text-slate-400 block text-[11px]">大隊考核督導官核章：</span>
+            <div class="h-6"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: 常模統計與大隊分析 (支援各單項獨立排序與中位數/標準差計算) -->
+    <section id="tabStats" class="hidden space-y-6">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-ranking-star text-red-600"></i>
+              大隊 / 分隊人員體能常模多維度統計分析
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">
+              提供即時各單項及總分高低排序、常模組別統計量（平均值 Mean、標準差 SD、中位數 Median、合格率）
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2.5">
+            <select id="statsFilterSession" onchange="renderStatsTable()" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-medium">
+              <option value="ALL">全部測驗期別</option>
+            </select>
+            <select id="statsFilterUnit" onchange="renderStatsTable()" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-medium">
+              <option value="ALL">全部單位 (第四大隊全體)</option>
+            </select>
+            <select id="statsFilterGroup" onchange="renderStatsTable()" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-medium">
+              <option value="ALL">全部年齡性別組別</option>
+              <option value="male_20_29">男性 20-29歲 (甲組)</option>
+              <option value="male_30_39">男性 30-39歲 (乙組)</option>
+              <option value="male_40_49">男性 40-49歲 (丙組)</option>
+              <option value="male_50_plus">男性 50歲以上 (丁組)</option>
+              <option value="female">女性同仁 (不分齡)</option>
+            </select>
+            <button onclick="exportCurrentTableToExcel()" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-2 rounded-lg transition shadow-sm flex items-center gap-1.5">
+              <i class="fa-solid fa-file-excel"></i> 匯出統計報表
+            </button>
+          </div>
+        </div>
+
+        <!-- 四大常模關鍵指標概覽卡片 -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5">
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <span class="text-xs font-semibold text-slate-500">篩選總受測人數</span>
+            <div class="text-2xl font-black text-slate-800 mt-1" id="statCardCount">0 人次</div>
+            <span class="text-[11px] text-slate-400">第四大隊即時名冊</span>
+          </div>
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <span class="text-xs font-semibold text-slate-500">平均總分 (Mean)</span>
+            <div class="text-2xl font-black text-red-600 mt-1" id="statCardMean">0.0</div>
+            <span class="text-[11px] text-slate-400" id="statCardStd">標準差 (SD): ±0.0</span>
+          </div>
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <span class="text-xs font-semibold text-slate-500">中位數 (Median)</span>
+            <div class="text-2xl font-black text-amber-600 mt-1" id="statCardMedian">0.0</div>
+            <span class="text-[11px] text-slate-400">P50 標竿對照線</span>
+          </div>
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <span class="text-xs font-semibold text-slate-500">測驗合格率 (≥50分)</span>
+            <div class="text-2xl font-black text-emerald-600 mt-1" id="statCardPassRate">0%</div>
+            <span class="text-[11px] text-slate-400" id="statCardPassCount">合格 0 / 不合格 0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 分數分佈長條圖 -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+        <h3 class="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+          <i class="fa-solid fa-chart-column text-red-600"></i> 各年齡層成績分佈與中位數水平
+        </h3>
+        <div class="h-64 w-full">
+          <canvas id="barStatsChart"></canvas>
+        </div>
+      </div>
+
+      <!-- 成績總排名名冊表格 (支援七項分別點擊排序) -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-4 border-b border-slate-200 flex flex-wrap justify-between items-center gap-3">
+          <div class="flex items-center gap-2">
+            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-list-ol text-slate-600"></i> 同仁成績名冊與各項體能高低排名
+            </h3>
+            <span id="currentSortBadge" class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-semibold">依總分排序 (高到低)</span>
+          </div>
+          <div class="flex items-center gap-2 text-xs flex-wrap">
+            <span class="text-slate-500">快速單項排序：</span>
+            <button onclick="sortTableBy('totalScore')" class="px-2.5 py-1 bg-red-600 text-white rounded font-bold">總分</button>
+            <button onclick="sortTableBy('jump')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded font-medium text-slate-700">跳遠</button>
+            <button onclick="sortTableBy('throw')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded font-medium text-slate-700">後拋</button>
+            <button onclick="sortTableBy('shuttle')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded font-medium text-slate-700">折返</button>
+            <button onclick="sortTableBy('deadlift')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded font-medium text-slate-700">硬舉</button>
+            <button onclick="sortTableBy('hang')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded font-medium text-slate-700">屈體</button>
+            <button onclick="sortTableBy('carry')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded font-medium text-slate-700">負重</button>
+            <button onclick="sortTableBy('run')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded font-medium text-slate-700">1500m</button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto custom-scrollbar">
+          <table class="w-full text-left text-xs sm:text-sm">
+            <thead class="bg-slate-100 text-slate-600 uppercase font-semibold text-xs border-b border-slate-200">
+              <tr>
+                <th class="py-3 px-3 cursor-pointer hover:text-red-600" onclick="sortTableBy('totalScore')">目前排名 <i class="fa-solid fa-sort text-[10px]"></i></th>
+                <th class="py-3 px-3">單位</th>
+                <th class="py-3 px-3">姓名</th>
+                <th class="py-3 px-3">測驗梯次</th>
+                <th class="py-3 px-3 cursor-pointer hover:text-red-600" onclick="sortTableBy('age')">性別/年齡 <i class="fa-solid fa-sort text-[10px]"></i></th>
+                <th class="py-3 px-3">身高/體重</th>
+                <th class="py-3 px-3 text-center cursor-pointer hover:bg-slate-200" onclick="sortTableBy('jump')">跳遠(10) <i class="fa-solid fa-sort text-[10px]"></i></th>
+                <th class="py-3 px-3 text-center cursor-pointer hover:bg-slate-200" onclick="sortTableBy('throw')">後拋(15) <i class="fa-solid fa-sort text-[10px]"></i></th>
+                <th class="py-3 px-3 text-center cursor-pointer hover:bg-slate-200" onclick="sortTableBy('shuttle')">折返(10) <i class="fa-solid fa-sort text-[10px]"></i></th>
+                <th class="py-3 px-3 text-center cursor-pointer hover:bg-slate-200" onclick="sortTableBy('deadlift')">硬舉(20) <i class="fa-solid fa-sort text-[10px]"></i></th>
+                <th class="py-3 px-3 text-center cursor-pointer hover:bg-slate-200" onclick="sortTableBy('hang')">屈體(15) <i class="fa-solid fa-sort text-[10px]"></i></th>
+                <th class="py-3 px-3 text-center cursor-pointer hover:bg-slate-200" onclick="sortTableBy('carry')">負重(10) <i class="fa-solid fa-sort text-[10px]"></i></th>
+                <th class="py-3 px-3 text-center cursor-pointer hover:bg-slate-200" onclick="sortTableBy('run')">1500m(20) <i class="fa-solid fa-sort text-[10px]"></i></th>
+                <th class="py-3 px-3 text-center font-bold text-red-600 cursor-pointer hover:bg-red-50" onclick="sortTableBy('totalScore')">總分(100) <i class="fa-solid fa-sort text-[10px]"></i></th>
+                <th class="py-3 px-3 text-center">與前次成長</th>
+                <th class="py-3 px-3 text-center">判定</th>
+                <th class="py-3 px-3 text-center">操作</th>
+              </tr>
+            </thead>
+            <tbody id="recordsTableBody" class="divide-y divide-slate-200">
+              <!-- 動態注入同仁資料列 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: Excel 批次作業與第四大隊單位維護模組 -->
+    <section id="tabBatch" class="hidden space-y-6">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <div class="border-b border-slate-100 pb-4 mb-5">
+          <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-file-arrow-up text-emerald-600"></i>
+            400+人大隊體能測驗批次 Excel 匯入
+          </h2>
+          <p class="text-xs text-slate-500 mt-1">
+            專為第四大隊與分隊承辦人員設計。直接下載制式 Excel 範本，填妥各分隊同仁測驗原始成績後，一鍵上傳並由系統自動依年齡層換算七項分數！
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- 步驟一：下載範本 -->
+          <div class="p-5 rounded-xl border border-dashed border-slate-300 bg-slate-50/70 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center gap-2 text-slate-800 font-bold text-sm mb-2">
+                <span class="w-6 h-6 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs">1</span>
+                下載常訓批次空白範本 (含第四大隊20個單位)
+              </div>
+              <p class="text-xs text-slate-600 leading-relaxed">
+                範本格式化好所有必要欄位（單位、姓名、測驗期別、性別、年齡、身高、體重、立定跳遠、後拋、折返、硬舉、懸吊屈體、負重、1500m時間）。
+              </p>
+            </div>
+            <div class="mt-4 flex flex-wrap gap-2">
+              <button onclick="downloadExcelTemplate()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-2 shadow-sm">
+                <i class="fa-solid fa-download"></i> 下載 Excel 範本 (.xlsx)
+              </button>
+              <button onclick="loadSample400Data()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-2 shadow-sm">
+                <i class="fa-solid fa-users"></i> 注入示範名冊 (60筆兩期對照)
+              </button>
+            </div>
+          </div>
+
+          <!-- 步驟二：上傳檔案 -->
+          <div class="p-5 rounded-xl border border-dashed border-emerald-300 bg-emerald-50/40 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center gap-2 text-slate-800 font-bold text-sm mb-2">
+                <span class="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs">2</span>
+                選擇已填妥之 Excel 或 CSV 檔案上傳
+              </div>
+              <p class="text-xs text-slate-600 leading-relaxed">
+                支援 .xlsx, .xls, .csv 檔案。系統讀取後將進行資料驗證，自動根據每位同仁的性別與年齡，對照附件常模算出七項個別分數與總成績。
+              </p>
+            </div>
+            <div class="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
+              <label class="inline-flex items-center justify-center px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition shadow-sm cursor-pointer gap-2">
+                <i class="fa-solid fa-file-arrow-up"></i> 選擇檔案並批次匯入
+                <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" onchange="handleExcelUpload(event)" class="hidden">
+              </label>
+              <span id="importStatusText" class="text-xs text-slate-500 font-medium">尚未選取檔案</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 第四大隊單位與分隊管理區塊 -->
+        <div class="mt-8 pt-6 border-t border-slate-200">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <i class="fa-solid fa-building-shield text-slate-700"></i>
+                第四大隊轄屬 20 個分隊與單位自訂維護
+              </h3>
+              <p class="text-xs text-slate-500 mt-0.5">預設已載入第四大隊轄下 16 個分隊、3 個中隊及第四大隊部，您亦可依需求增修單位名稱。</p>
+            </div>
+            <button onclick="resetDefaultUnits()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg transition font-medium">
+              <i class="fa-solid fa-arrow-rotate-left mr-1"></i>重設為第四大隊預設單位
+            </button>
+          </div>
+          <div class="space-y-2">
+            <textarea id="customUnitsInput" rows="3" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-xs focus:ring-2 focus:ring-red-500 focus:outline-none leading-relaxed" placeholder="請以逗號分隔各單位名稱..."></textarea>
+            <div class="flex justify-end">
+              <button onclick="saveCustomUnits()" class="text-xs bg-slate-800 hover:bg-slate-900 text-white font-semibold px-4 py-2 rounded-lg transition shadow-sm">
+                <i class="fa-solid fa-floppy-disk mr-1"></i>儲存單位名單
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Google Apps Script 正式版雲端後端串接設定卡片 -->
+        <div class="mt-8 pt-6 border-t border-slate-200">
+          <div class="p-5 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div class="space-y-1 w-full md:w-2/3">
+              <div class="flex items-center gap-2">
+                <span class="p-2 rounded-lg bg-blue-600 text-white text-sm"><i class="fa-brands fa-google-drive"></i></span>
+                <h4 class="text-sm font-bold text-slate-800">Google Apps Script 雲端試算表串接網址 (正式版 API Endpoint)</h4>
+              </div>
+              <p class="text-xs text-slate-600">已綁定正式版 Google Apps Script 網路應用程式 URL，支援 GitHub Pages 免登入雙向資料庫介接：</p>
+              <div class="flex items-center gap-2 mt-1">
+                <input type="text" id="customGasUrlInput" value="https://script.google.com/macros/s/AKfycby17t3_QCVG1NjQ6GIKXhOYzRy_35yksWfpEWAGplBK8ZW-MxQPbDOSmQqOf7m7vHknng/exec" class="w-full font-mono text-[11px] text-blue-900 bg-white p-2 rounded-lg border border-blue-300 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <button onclick="saveGasUrlPreference()" class="shrink-0 px-3 py-2 bg-slate-800 text-white rounded-lg text-xs font-semibold hover:bg-slate-900">
+                  套用網址
+                </button>
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 shrink-0">
+              <button onclick="testGASConnection()" class="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-satellite-dish"></i> 測試 API 連線
+              </button>
+              <button onclick="syncDataFromGAS()" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-cloud-arrow-down"></i> 讀取雲端資料
+              </button>
+              <button onclick="pushAllDataToGAS()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-cloud-arrow-up"></i> 全數同步至雲端
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 浮動提示訊息 Toast -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+      <div class="bg-slate-900/95 text-white text-sm px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 border border-slate-700">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+        <span id="toastMsg" class="font-medium">系統提示</span>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    /* ==========================================================================
+       1. 官方常模級距資料庫 (精確對照附件二之一至附件二之五)
+       七項滿分：跳遠10, 後拋15, 折返10, 硬舉20, 屈體15, 負重10, 1500m 20 (總分100)
+       ========================================================================== */
+    const NORM_TABLES = {
+      // 男性 20-29歲 (附件二之一)
+      male_20_29: {
+        jump:     [ {score:10, val:260}, {score:9, val:250}, {score:8, val:240}, {score:7, val:230}, {score:6, val:220}, {score:5, val:210}, {score:4, val:205}, {score:3, val:200}, {score:2, val:195}, {score:1, val:190} ],
+        throw:    [ {score:15, val:18}, {score:14, val:17}, {score:13, val:16}, {score:12, val:15}, {score:11, val:14}, {score:10, val:13}, {score:9, val:12}, {score:8, val:11}, {score:7, val:10}, {score:6, val:9}, {score:5, val:8}, {score:4, val:7}, {score:3, val:6}, {score:2, val:5}, {score:1, val:4} ],
+        shuttle:  [ {score:10, val:16}, {score:9, val:15}, {score:8, val:14}, {score:7, val:13}, {score:6, val:12}, {score:5, val:11}, {score:4, val:10}, {score:3, val:9}, {score:2, val:8}, {score:1, val:7} ],
+        deadlift: [ {score:20, val:175}, {score:19, val:165}, {score:18, val:155}, {score:17, val:145}, {score:16, val:135}, {score:15, val:125}, {score:14, val:115}, {score:13, val:110}, {score:12, val:105}, {score:11, val:100}, {score:10, val:95}, {score:9, val:90}, {score:8, val:85}, {score:7, val:80}, {score:6, val:75}, {score:5, val:70}, {score:4, val:65}, {score:3, val:60}, {score:2, val:55}, {score:1, val:50} ],
+        hang:     [ {score:15, val:20}, {score:14, val:18}, {score:13, val:16}, {score:12, val:14}, {score:11, val:12}, {score:10, val:10}, {score:9, val:9}, {score:8, val:8}, {score:7, val:7}, {score:6, val:6}, {score:5, val:5}, {score:4, val:4}, {score:3, val:3}, {score:2, val:2}, {score:1, val:1} ],
+        carry:    [ {score:10, val:175}, {score:9, val:160}, {score:8, val:145}, {score:7, val:130}, {score:6, val:125}, {score:5, val:120}, {score:4, val:115}, {score:3, val:110}, {score:2, val:105}, {score:1, val:100} ],
+        run1500:  [ {score:20, val:340}, {score:19, val:355}, {score:18, val:370}, {score:17, val:385}, {score:16, val:400}, {score:15, val:415}, {score:14, val:430}, {score:13, val:445}, {score:12, val:460}, {score:11, val:470}, {score:10, val:480}, {score:9, val:490}, {score:8, val:500}, {score:7, val:510}, {score:6, val:520}, {score:5, val:530}, {score:4, val:540}, {score:3, val:550}, {score:2, val:560}, {score:1, val:570} ]
+      },
+      // 男性 30-39歲 (附件二之二)
+      male_30_39: {
+        jump:     [ {score:10, val:255}, {score:9, val:245}, {score:8, val:235}, {score:7, val:225}, {score:6, val:215}, {score:5, val:205}, {score:4, val:200}, {score:3, val:195}, {score:2, val:190}, {score:1, val:185} ],
+        throw:    [ {score:15, val:17}, {score:14, val:16}, {score:13, val:15}, {score:12, val:14}, {score:11, val:13}, {score:10, val:12}, {score:9, val:11}, {score:8, val:10}, {score:7, val:9}, {score:6, val:8}, {score:5, val:7}, {score:4, val:6}, {score:3, val:5}, {score:2, val:4}, {score:1, val:3} ],
+        shuttle:  [ {score:10, val:15}, {score:9, val:14}, {score:8, val:13}, {score:7, val:12}, {score:6, val:11}, {score:5, val:10}, {score:4, val:9}, {score:3, val:8}, {score:2, val:7}, {score:1, val:6} ],
+        deadlift: [ {score:20, val:170}, {score:19, val:160}, {score:18, val:150}, {score:17, val:140}, {score:16, val:130}, {score:15, val:120}, {score:14, val:110}, {score:13, val:105}, {score:12, val:100}, {score:11, val:95}, {score:10, val:90}, {score:9, val:85}, {score:8, val:80}, {score:7, val:75}, {score:6, val:70}, {score:5, val:65}, {score:4, val:60}, {score:3, val:55}, {score:2, val:50}, {score:1, val:45} ],
+        hang:     [ {score:15, val:18}, {score:14, val:16}, {score:13, val:14}, {score:12, val:12}, {score:11, val:10}, {score:10, val:9}, {score:9, val:8}, {score:8, val:7}, {score:7, val:6}, {score:6, val:5}, {score:5, val:4}, {score:4, val:3}, {score:3, val:2}, {score:1, val:1} ],
+        carry:    [ {score:10, val:170}, {score:9, val:155}, {score:8, val:140}, {score:7, val:125}, {score:6, val:120}, {score:5, val:115}, {score:4, val:110}, {score:3, val:105}, {score:2, val:100}, {score:1, val:95} ],
+        run1500:  [ {score:20, val:350}, {score:19, val:365}, {score:18, val:380}, {score:17, val:395}, {score:16, val:410}, {score:15, val:425}, {score:14, val:440}, {score:13, val:455}, {score:12, val:470}, {score:11, val:480}, {score:10, val:490}, {score:9, val:500}, {score:8, val:510}, {score:7, val:520}, {score:6, val:530}, {score:5, val:540}, {score:4, val:550}, {score:3, val:560}, {score:2, val:570}, {score:1, val:580} ]
+      },
+      // 男性 40-49歲 (附件二之三)
+      male_40_49: {
+        jump:     [ {score:10, val:250}, {score:9, val:240}, {score:8, val:230}, {score:7, val:220}, {score:6, val:210}, {score:5, val:200}, {score:4, val:195}, {score:3, val:190}, {score:2, val:185}, {score:1, val:180} ],
+        throw:    [ {score:15, val:16}, {score:14, val:15}, {score:13, val:14}, {score:12, val:13}, {score:11, val:12}, {score:10, val:11}, {score:9, val:10}, {score:8, val:9}, {score:7, val:8}, {score:6, val:7}, {score:5, val:6}, {score:4, val:5}, {score:3, val:4}, {score:2, val:3}, {score:1, val:2} ],
+        shuttle:  [ {score:10, val:15}, {score:9, val:14}, {score:8, val:13}, {score:7, val:12}, {score:6, val:11}, {score:5, val:10}, {score:4, val:9}, {score:3, val:8}, {score:2, val:7}, {score:1, val:6} ],
+        deadlift: [ {score:20, val:165}, {score:19, val:155}, {score:18, val:145}, {score:17, val:135}, {score:16, val:125}, {score:15, val:115}, {score:14, val:105}, {score:13, val:100}, {score:12, val:95}, {score:11, val:90}, {score:10, val:85}, {score:9, val:80}, {score:8, val:75}, {score:7, val:70}, {score:6, val:65}, {score:5, val:60}, {score:4, val:55}, {score:3, val:50}, {score:2, val:45}, {score:1, val:40} ],
+        hang:     [ {score:15, val:18}, {score:14, val:16}, {score:13, val:14}, {score:12, val:12}, {score:11, val:10}, {score:10, val:9}, {score:9, val:8}, {score:8, val:7}, {score:7, val:6}, {score:6, val:5}, {score:5, val:4}, {score:4, val:3}, {score:3, val:2}, {score:1, val:1} ],
+        carry:    [ {score:10, val:165}, {score:9, val:150}, {score:8, val:135}, {score:7, val:120}, {score:6, val:115}, {score:5, val:110}, {score:4, val:105}, {score:3, val:100}, {score:2, val:95}, {score:1, val:90} ],
+        run1500:  [ {score:20, val:375}, {score:19, val:390}, {score:18, val:405}, {score:17, val:420}, {score:16, val:435}, {score:15, val:450}, {score:14, val:465}, {score:13, val:480}, {score:12, val:495}, {score:11, val:505}, {score:10, val:515}, {score:9, val:525}, {score:8, val:535}, {score:7, val:545}, {score:6, val:555}, {score:5, val:565}, {score:4, val:575}, {score:3, val:585}, {score:2, val:595}, {score:1, val:605} ]
+      },
+      // 男性 50歲以上 (附件二之四)
+      male_50_plus: {
+        jump:     [ {score:10, val:185}, {score:9, val:180}, {score:8, val:175}, {score:7, val:170}, {score:6, val:165}, {score:5, val:160}, {score:4, val:155}, {score:3, val:150}, {score:2, val:145}, {score:1, val:140} ],
+        throw:    [ {score:15, val:13}, {score:14, val:12.5}, {score:13, val:12}, {score:12, val:11.5}, {score:11, val:11}, {score:10, val:10.5}, {score:9, val:10}, {score:8, val:9}, {score:7, val:8}, {score:6, val:7}, {score:5, val:6}, {score:4, val:5}, {score:3, val:4}, {score:2, val:3}, {score:1, val:2} ],
+        shuttle:  [ {score:10, val:14}, {score:9, val:13}, {score:8, val:12}, {score:7, val:11}, {score:6, val:10}, {score:5, val:9}, {score:4, val:8}, {score:3, val:7}, {score:2, val:6}, {score:1, val:5} ],
+        deadlift: [ {score:20, val:140}, {score:19, val:130}, {score:18, val:120}, {score:17, val:110}, {score:16, val:100}, {score:15, val:95}, {score:14, val:90}, {score:13, val:85}, {score:12, val:80}, {score:11, val:75}, {score:10, val:70}, {score:9, val:65}, {score:8, val:60}, {score:7, val:55}, {score:6, val:50}, {score:5, val:45}, {score:4, val:40}, {score:3, val:35}, {score:2, val:30}, {score:1, val:25} ],
+        hang:     [ {score:15, val:9}, {score:14, val:8}, {score:13, val:7}, {score:12, val:6}, {score:11, val:5}, {score:10, val:4}, {score:9, val:3}, {score:6, val:2}, {score:3, val:1} ],
+        carry:    [ {score:10, val:140}, {score:9, val:120}, {score:8, val:100}, {score:7, val:90}, {score:6, val:80}, {score:5, val:75}, {score:4, val:70}, {score:3, val:65}, {score:2, val:60}, {score:1, val:55} ],
+        run1500:  [ {score:20, val:515}, {score:19, val:530}, {score:18, val:545}, {score:17, val:560}, {score:16, val:575}, {score:15, val:590}, {score:14, val:605}, {score:13, val:620}, {score:12, val:635}, {score:11, val:640}, {score:10, val:645}, {score:9, val:650}, {score:8, val:655}, {score:7, val:660}, {score:6, val:665}, {score:5, val:670}, {score:4, val:675}, {score:3, val:680}, {score:2, val:685}, {score:1, val:690} ]
+      },
+      // 女性不分年齡 (附件二之五)
+      female: {
+        jump:     [ {score:10, val:200}, {score:9, val:190}, {score:8, val:180}, {score:7, val:170}, {score:6, val:160}, {score:5, val:155}, {score:4, val:150}, {score:3, val:145}, {score:2, val:140}, {score:1, val:135} ],
+        throw:    [ {score:15, val:13}, {score:14, val:12}, {score:13, val:11}, {score:12, val:10}, {score:11, val:9}, {score:10, val:8.5}, {score:9, val:8.0}, {score:8, val:7.5}, {score:7, val:7.0}, {score:6, val:6.5}, {score:5, val:6.0}, {score:4, val:5.5}, {score:3, val:5.0}, {score:2, val:4.5}, {score:1, val:3.0} ],
+        shuttle:  [ {score:10, val:15}, {score:9, val:14}, {score:8, val:13}, {score:7, val:12}, {score:6, val:11}, {score:5, val:10}, {score:4, val:9}, {score:3, val:8}, {score:2, val:7}, {score:1, val:6} ],
+        deadlift: [ {score:20, val:140}, {score:19, val:120}, {score:18, val:110}, {score:17, val:100}, {score:16, val:90}, {score:15, val:85}, {score:14, val:80}, {score:13, val:75}, {score:12, val:70}, {score:11, val:65}, {score:10, val:60}, {score:9, val:55}, {score:8, val:50}, {score:7, val:45}, {score:6, val:40}, {score:5, val:35}, {score:4, val:30}, {score:3, val:25}, {score:1, val:20} ],
+        hang_rep: [ {score:15, val:6}, {score:14, val:5}, {score:13, val:4}, {score:12, val:3}, {score:11, val:2}, {score:9, val:1} ],
+        hang_sec: [ {score:8, val:35}, {score:7, val:32}, {score:6, val:30}, {score:5, val:28}, {score:4, val:26}, {score:3, val:24}, {score:2, val:22}, {score:1, val:20} ],
+        carry:    [ {score:10, val:140}, {score:9, val:120}, {score:8, val:100}, {score:7, val:90}, {score:6, val:80}, {score:5, val:70}, {score:4, val:65}, {score:3, val:60}, {score:2, val:55}, {score:1, val:50} ],
+        run1500:  [ {score:20, val:450}, {score:19, val:465}, {score:18, val:480}, {score:17, val:495}, {score:16, val:510}, {score:15, val:525}, {score:14, val:540}, {score:13, val:555}, {score:12, val:570}, {score:11, val:585}, {score:10, val:590}, {score:9, val:595}, {score:8, val:600}, {score:7, val:605}, {score:6, val:610}, {score:5, val:615}, {score:4, val:620}, {score:3, val:625}, {score:2, val:630}, {score:1, val:635} ]
+      }
+    };
+
+    // 附件五 Beep Test 階級換算表
+    const BEEP_TEST_TABLE = {
+      male_20_29: { "10-2":20, "9-6":19, "8-10":18, "8-4":17, "7-9":16, "7-4":15, "6-10":14, "6-6":13, "6-2":12, "5-9":11, "5-7":10, "5-5":9, "5-3":8, "5-1":7, "4-8":6, "4-7":5, "4-5":4, "4-4":3, "4-3":2, "4-2":1 },
+      male_30_39: { "9-8":20, "9-1":19, "8-6":18, "7-10":17, "7-6":16, "7-1":15, "6-7":14, "6-3":13, "5-9":12, "5-7":11, "5-5":10, "5-3":9, "5-1":8, "4-8":7, "4-7":6, "4-5":5, "4-4":4, "4-2":3, "4-1":2, "3-8":1 },
+      male_40_49: { "8-7":20, "8-2":19, "7-7":18, "7-3":17, "6-8":16, "6-5":15, "6-1":14, "5-7":13, "5-4":12, "5-2":11, "4-9":10, "4-8":9, "4-6":8, "4-4":7, "4-3":6, "4-1":5, "3-8":4, "3-7":3, "3-6":2, "3-5":1 },
+      male_50_plus: { "4-9":20, "4-7":19, "4-4":18, "4-2":17, "3-8":16, "3-7":15, "3-5":14, "3-3":13, "3-2":12, "3-1":11, "2-8":9, "2-7":7, "2-6":5, "2-5":3, "2-4":1 },
+      female: { "6-5":20, "6-1":19, "5-7":18, "5-4":17, "5-1":16, "4-8":15, "4-5":14, "4-3":13, "4-1":12, "3-7":11, "3-6":9, "3-5":7, "3-4":5, "3-3":3, "3-2":2, "3-1":1 }
+    };
+
+    // 第四大隊預設 20 個單位名冊 (16 個分隊、3 個中隊、第四大隊部)
+    const DEFAULT_UNITS = [
+      "第四大隊大同中隊", "第四大隊大同分隊", "第四大隊建成分隊", "第四大隊延平分隊",
+      "第四大隊士林中隊", "第四大隊劍潭分隊", "第四大隊後港分隊", "第四大隊福安分隊", 
+      "第四大隊社子分隊", "第四大隊雙溪分隊", "第四大隊天母分隊", "第四大隊山仔后分隊",
+      "第四大隊北投中隊", "第四大隊石牌分隊", "第四大隊光明分隊", "第四大隊秀山分隊", 
+      "第四大隊關渡分隊", "第四大隊陽明山分隊", "第四大隊福國分隊",
+      "第四大隊"
+    ];
+
+    const DEFAULT_SESSIONS = [
+      "115年上半年", "115年下半年",
+      "116年上半年", "116年下半年",
+      "115年第1次", "115年第2次", "115年第3次",
+      "116年第1次", "116年第2次", "116年第3次"
+    ];
+
+    // Google Apps Script (GAS) 正式版 Web App 端點網址
+    let GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycby17t3_QCVG1NjQ6GIKXhOYzRy_35yksWfpEWAGplBK8ZW-MxQPbDOSmQqOf7m7vHknng/exec";
+
+    function getGasUrl() {
+      const input = document.getElementById('customGasUrlInput');
+      if (input && input.value.trim()) {
+        return input.value.trim();
+      }
+      return GAS_ENDPOINT_URL;
+    }
+
+    function saveGasUrlPreference() {
+      const url = getGasUrl();
+      GAS_ENDPOINT_URL = url;
+      showToast("已更新 Google Apps Script 端點網址！", "success");
+      testGASConnection();
+    }
+
+    let currentSessions = [...DEFAULT_SESSIONS];
+    let currentUnits = [...DEFAULT_UNITS];
+    let firefighterRecords = []; // 記憶體資料庫
+    let radarChartInstance = null;
+    let barChartInstance = null;
+    let benchmarkRadarInstance = null;
+    let reportRadarInstance = null;
+    let currentSortColumn = 'totalScore';
+    let isSortDescending = true;
+
+    /* ==========================================================================
+       2. 常模分組與計分運算邏輯
+       ========================================================================== */
+    function getNormGroupKey(gender, age) {
+      if (gender === 'female' || gender === '女') return 'female';
+      const a = parseInt(age, 10);
+      if (a < 30) return 'male_20_29';
+      if (a < 40) return 'male_30_39';
+      if (a < 50) return 'male_40_49';
+      return 'male_50_plus';
+    }
+
+    function getNormGroupDisplayName(key) {
+      switch (key) {
+        case 'male_20_29': return '男性 20~29歲 (附件二之一)';
+        case 'male_30_39': return '男性 30~39歲 (附件二之二)';
+        case 'male_40_49': return '男性 40~49歲 (附件二之三)';
+        case 'male_50_plus': return '男性 50歲以上 (附件二之四)';
+        case 'female': return '女性同仁不分年齡 (附件二之五)';
+        default: return '標準常模';
+      }
+    }
+
+    function calcHigherBetterScore(thresholds, value) {
+      if (value === undefined || value === null || isNaN(value)) return 0;
+      for (const item of thresholds) {
+        if (value >= item.val) return item.score;
+      }
+      return 0;
+    }
+
+    function calcRun1500Score(thresholds, totalSeconds) {
+      if (!totalSeconds || isNaN(totalSeconds) || totalSeconds <= 0) return 0;
+      for (const item of thresholds) {
+        if (totalSeconds <= item.val) return item.score;
+      }
+      return 0;
+    }
+
+    function calcBeepScore(groupKey, beepStr) {
+      if (!beepStr) return 0;
+      const clean = beepStr.trim();
+      const map = BEEP_TEST_TABLE[groupKey];
+      if (map && map[clean]) return map[clean];
+      return 0;
+    }
+
+    function computeFullRecord(raw) {
+      const isFemale = (raw.gender === 'female' || raw.gender === '女');
+      const normalizedGender = isFemale ? 'female' : 'male';
+      const groupKey = getNormGroupKey(normalizedGender, raw.age);
+      const tables = NORM_TABLES[groupKey];
+
+      const score_jump = calcHigherBetterScore(tables.jump, parseFloat(raw.jump));
+      const score_throw = calcHigherBetterScore(tables.throw, parseFloat(raw.throw));
+      const score_shuttle = calcHigherBetterScore(tables.shuttle, parseFloat(raw.shuttle));
+      const score_deadlift = calcHigherBetterScore(tables.deadlift, parseFloat(raw.deadlift));
+      
+      let score_hang = 0;
+      if (isFemale && raw.femalePullupType === 'sec') {
+        score_hang = calcHigherBetterScore(tables.hang_sec, parseFloat(raw.hang));
+      } else if (isFemale) {
+        score_hang = calcHigherBetterScore(tables.hang_rep, parseFloat(raw.hang));
+      } else {
+        score_hang = calcHigherBetterScore(tables.hang, parseFloat(raw.hang));
+      }
+
+      const score_carry = calcHigherBetterScore(tables.carry, parseFloat(raw.carry));
+
+      let score_run = 0;
+      if (raw.runMode === 'beep') {
+        score_run = calcBeepScore(groupKey, raw.beepTest);
+      } else {
+        score_run = calcRun1500Score(tables.run1500, parseInt(raw.runSeconds, 10));
+      }
+
+      const totalScore = score_jump + score_throw + score_shuttle + score_deadlift + score_hang + score_carry + score_run;
+      const isPassed = totalScore >= 50;
+
+      let bmi = 0;
+      if (raw.height && raw.weight && raw.height > 0) {
+        const hm = raw.height / 100;
+        bmi = parseFloat((raw.weight / (hm * hm)).toFixed(1));
+      }
+
+      return {
+        ...raw,
+        gender: normalizedGender,
+        session: raw.session || '115年上半年',
+        groupKey,
+        bmi,
+        scores: {
+          jump: score_jump,
+          throw: score_throw,
+          shuttle: score_shuttle,
+          deadlift: score_deadlift,
+          hang: score_hang,
+          carry: score_carry,
+          run: score_run
+        },
+        totalScore,
+        isPassed
+      };
+    }
+
+    // 尋找同仁前一次測驗紀錄
+    function findPreviousRecord(name, unit, currentSession, currentId) {
+      if (!name || name === '未填寫') return null;
+      const history = firefighterRecords.filter(r => r.name === name && r.unit === unit && r.id !== currentId && r.session !== currentSession);
+      if (history.length === 0) return null;
+      return history[history.length - 1];
+    }
+
+    /* ==========================================================================
+       3. 介面互動與分頁切換控制
+       ========================================================================== */
+    function switchTab(tabId) {
+      document.getElementById('tabSingle').classList.add('hidden');
+      document.getElementById('tabCompare').classList.add('hidden');
+      document.getElementById('tabReport').classList.add('hidden');
+      document.getElementById('tabStats').classList.add('hidden');
+      document.getElementById('tabBatch').classList.add('hidden');
+
+      const btnS = document.getElementById('navSingleBtn');
+      const btnC = document.getElementById('navCompareBtn');
+      const btnR = document.getElementById('navReportBtn');
+      const btnSt = document.getElementById('navStatsBtn');
+      const btnB = document.getElementById('navBatchBtn');
+
+      const inactive = "px-3 py-1.5 rounded-lg text-sm font-medium transition text-red-100 hover:bg-white/10 flex items-center gap-1.5";
+      const active = "px-3 py-1.5 rounded-lg text-sm font-medium transition bg-white/20 text-white shadow-sm flex items-center gap-1.5";
+
+      btnS.className = inactive;
+      btnC.className = inactive;
+      btnR.className = inactive;
+      btnSt.className = inactive;
+      btnB.className = inactive;
+
+      if (tabId === 'single') {
+        document.getElementById('tabSingle').classList.remove('hidden');
+        btnS.className = active;
+        updateFormAndCalc();
+      } else if (tabId === 'compare') {
+        document.getElementById('tabCompare').classList.remove('hidden');
+        btnC.className = active;
+        populateBenchmarkPersonSelect();
+        handleBenchmarkTypeChange();
+      } else if (tabId === 'report') {
+        document.getElementById('tabReport').classList.remove('hidden');
+        btnR.className = active;
+        populateReportFilters();
+        renderPersonalReport();
+      } else if (tabId === 'stats') {
+        document.getElementById('tabStats').classList.remove('hidden');
+        btnSt.className = active;
+        renderStatsTable();
+      } else if (tabId === 'batch') {
+        document.getElementById('tabBatch').classList.remove('hidden');
+        btnB.className = active;
+      }
+    }
+
+    function calculateBMI() {
+      const h = parseFloat(document.getElementById('inputHeight').value) || 0;
+      const w = parseFloat(document.getElementById('inputWeight').value) || 0;
+      const badge = document.getElementById('bmiBadge');
+      if (h > 0 && w > 0) {
+        const bmi = (w / ((h / 100) * (h / 100))).toFixed(1);
+        let colorClass = 'bg-emerald-100 text-emerald-800';
+        let note = '正常';
+        if (bmi < 18.5) { colorClass = 'bg-blue-100 text-blue-800'; note = '過輕'; }
+        else if (bmi >= 24 && bmi < 27) { colorClass = 'bg-amber-100 text-amber-800'; note = '過重'; }
+        else if (bmi >= 27) { colorClass = 'bg-red-100 text-red-800'; note = '肥胖'; }
+        badge.className = `mt-1 text-[11px] font-semibold px-2 py-0.5 rounded ${colorClass} text-center`;
+        badge.textContent = `BMI ${bmi} (${note})`;
+      }
+    }
+
+    function toggleRunMode() {
+      const mode = document.getElementById('runModeSelect').value;
+      const timeWrap = document.getElementById('runTimeInputWrapper');
+      const beepWrap = document.getElementById('runBeepInputWrapper');
+      if (mode === 'time') {
+        timeWrap.classList.remove('hidden');
+        beepWrap.classList.add('hidden');
+      } else {
+        timeWrap.classList.add('hidden');
+        beepWrap.classList.remove('hidden');
+      }
+      updateFormAndCalc();
+    }
+
+    function handleSessionInput() {
+      const val = document.getElementById('inputSession').value.trim();
+      if (val && !currentSessions.includes(val)) {
+        currentSessions.push(val);
+        refreshSessionDataList();
+      }
+      updateFormAndCalc();
+    }
+
+    function refreshSessionDataList() {
+      const dl = document.getElementById('sessionDataList');
+      if (dl) {
+        dl.innerHTML = currentSessions.map(s => `<option value="${s}"></option>`).join('');
+      }
+      const sSelect = document.getElementById('statsFilterSession');
+      if (sSelect) {
+        const cur = sSelect.value;
+        sSelect.innerHTML = `<option value="ALL">全部測驗期別</option>` + currentSessions.map(s => `<option value="${s}">${s}</option>`).join('');
+        if (currentSessions.includes(cur)) sSelect.value = cur;
+      }
+    }
+
+    function updateFormAndCalc() {
+      const gender = document.getElementById('inputGender').value;
+      const age = parseInt(document.getElementById('inputAge').value, 10) || 25;
+      const groupKey = getNormGroupKey(gender, age);
+
+      document.getElementById('currentNormGroupText').textContent = getNormGroupDisplayName(groupKey);
+
+      const femaleSwitch = document.getElementById('femalePullupSwitch');
+      const pullupAltBadge = document.getElementById('pullupAltBadge');
+      const pullupTitle = document.getElementById('pullupTitle');
+      const pullupHint = document.getElementById('pullupHint');
+      const hangUnitText = document.getElementById('hangUnitText');
+
+      if (gender === 'female') {
+        femaleSwitch.classList.remove('hidden');
+        pullupAltBadge.classList.remove('hidden');
+        const fType = document.getElementById('femalePullupType').value;
+        if (fType === 'sec') {
+          pullupTitle.textContent = "屈臂懸垂 (秒)";
+          pullupHint.textContent = "反握下顎過槓支撐秒數 (滿分8分)";
+          hangUnitText.textContent = "秒";
+        } else {
+          pullupTitle.textContent = "懸吊屈體 (次數)";
+          pullupHint.textContent = "膝碰上臂或肘觸大腿次數 (滿分15分)";
+          hangUnitText.textContent = "次";
+        }
+      } else {
+        femaleSwitch.classList.add('hidden');
+        pullupAltBadge.classList.add('hidden');
+        pullupTitle.textContent = "懸吊屈體 (次數)";
+        pullupHint.textContent = "雙膝碰手肘捲腹完成次數 (滿分15分)";
+        hangUnitText.textContent = "次";
+      }
+
+      const session = document.getElementById('inputSession').value.trim() || '115年上半年';
+      const runMode = document.getElementById('runModeSelect').value;
+      const runMin = parseInt(document.getElementById('t_run_min').value, 10) || 0;
+      const runSec = parseInt(document.getElementById('t_run_sec').value, 10) || 0;
+      const totalRunSeconds = (runMin * 60) + runSec;
+
+      const raw = {
+        name: document.getElementById('inputName').value.trim() || '未填寫',
+        unit: document.getElementById('inputUnit').value,
+        session: session,
+        gender: gender,
+        age: age,
+        height: parseFloat(document.getElementById('inputHeight').value) || 170,
+        weight: parseFloat(document.getElementById('inputWeight').value) || 70,
+        jump: parseFloat(document.getElementById('t_jump').value) || 0,
+        throw: parseFloat(document.getElementById('t_throw').value) || 0,
+        shuttle: parseFloat(document.getElementById('t_shuttle').value) || 0,
+        deadlift: parseFloat(document.getElementById('t_deadlift').value) || 0,
+        hang: parseFloat(document.getElementById('t_hang').value) || 0,
+        femalePullupType: gender === 'female' ? document.getElementById('femalePullupType').value : 'rep',
+        carry: parseFloat(document.getElementById('t_carry').value) || 0,
+        runMode: runMode,
+        runSeconds: totalRunSeconds,
+        beepTest: document.getElementById('t_beep').value
+      };
+
+      const computed = computeFullRecord(raw);
+
+      // 更新個別得分
+      document.getElementById('score_jump').textContent = computed.scores.jump;
+      document.getElementById('score_throw').textContent = computed.scores.throw;
+      document.getElementById('score_shuttle').textContent = computed.scores.shuttle;
+      document.getElementById('score_deadlift').textContent = computed.scores.deadlift;
+      document.getElementById('score_hang').textContent = computed.scores.hang;
+      document.getElementById('score_carry').textContent = computed.scores.carry;
+      document.getElementById('score_run').textContent = computed.scores.run;
+
+      // 更新右側總分卡片
+      document.getElementById('cardName').textContent = `${computed.name} 同仁`;
+      document.getElementById('cardSubtitle').textContent = `${computed.unit} (${computed.age}歲 ${computed.gender === 'male' ? '男性' : '女性'})`;
+      document.getElementById('cardSessionTag').textContent = computed.session;
+      document.getElementById('cardTotalScore').textContent = computed.totalScore;
+
+      const cardBadge = document.getElementById('cardStatusBadge');
+      if (computed.isPassed) {
+        cardBadge.className = "px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40";
+        cardBadge.innerHTML = '<i class="fa-solid fa-check mr-1"></i>常規合格';
+      } else {
+        cardBadge.className = "px-3 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-300 border border-red-400/40";
+        cardBadge.innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-1"></i>未達標';
+      }
+
+      const pct = Math.min(100, Math.round((computed.totalScore / 100) * 100));
+      document.getElementById('cardProgressBar').style.width = `${pct}%`;
+      const passPct = Math.round((computed.totalScore / 50) * 100);
+      document.getElementById('cardPassPercentText').textContent = `${passPct}%`;
+      document.getElementById('cardAverageItemScore').textContent = `${computed.totalScore}% (滿分100分)`;
+
+      const prevRecord = findPreviousRecord(computed.name, computed.unit, computed.session, null);
+      renderProgressComparison(computed, prevRecord);
+      evaluatePeerPosition(computed);
+      renderRadarChart(computed, prevRecord);
+    }
+
+    function renderProgressComparison(current, prev) {
+      const diffPill = document.getElementById('progressDiffPill');
+      const itemContainer = document.getElementById('itemDiffContainer');
+      const itemGrid = document.getElementById('itemDiffGrid');
+      const prevSessionDateText = document.getElementById('prevSessionDateText');
+
+      if (!prev) {
+        diffPill.className = "text-xs font-medium px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 flex items-center gap-1.5 mt-0.5";
+        diffPill.innerHTML = '<i class="fa-solid fa-circle-info text-blue-400"></i> 尚無前次紀錄';
+        itemContainer.classList.add('hidden');
+        return;
+      }
+
+      const diff = current.totalScore - prev.totalScore;
+      if (diff > 0) {
+        diffPill.className = "text-xs font-black px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-400/60 text-emerald-300 flex items-center gap-1.5 mt-0.5 shadow-sm";
+        diffPill.innerHTML = `<i class="fa-solid fa-arrow-trend-up text-emerald-400 text-sm"></i> 成長 +${diff} 分 (前次 ${prev.totalScore}分)`;
+      } else if (diff < 0) {
+        diffPill.className = "text-xs font-black px-2.5 py-1 rounded-lg bg-red-500/20 border border-red-400/60 text-red-300 flex items-center gap-1.5 mt-0.5 shadow-sm";
+        diffPill.innerHTML = `<i class="fa-solid fa-arrow-trend-down text-red-400 text-sm"></i> 退步 ${diff} 分 (前次 ${prev.totalScore}分)`;
+      } else {
+        diffPill.className = "text-xs font-bold px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-400/60 text-amber-200 flex items-center gap-1.5 mt-0.5";
+        diffPill.innerHTML = `<i class="fa-solid fa-equals text-amber-300"></i> 持平 (${current.totalScore}分)`;
+      }
+
+      prevSessionDateText.textContent = `基準梯次：${prev.session}`;
+      itemContainer.classList.remove('hidden');
+
+      const items = [
+        { label: '跳遠', cScore: current.scores.jump, pScore: prev.scores.jump },
+        { label: '後拋', cScore: current.scores.throw, pScore: prev.scores.throw },
+        { label: '折返', cScore: current.scores.shuttle, pScore: prev.scores.shuttle },
+        { label: '硬舉', cScore: current.scores.deadlift, pScore: prev.scores.deadlift },
+        { label: '屈體', cScore: current.scores.hang, pScore: prev.scores.hang },
+        { label: '負重', cScore: current.scores.carry, pScore: prev.scores.carry },
+        { label: '1500m', cScore: current.scores.run, pScore: prev.scores.run }
+      ];
+
+      itemGrid.innerHTML = items.map(it => {
+        const itemDiff = it.cScore - it.pScore;
+        let color = 'text-slate-300';
+        let arrow = '<i class="fa-solid fa-minus text-[9px] text-slate-400"></i>';
+        if (itemDiff > 0) {
+          color = 'text-emerald-400 font-bold';
+          arrow = `<i class="fa-solid fa-arrow-up text-[10px] text-emerald-400"></i> +${itemDiff}`;
+        } else if (itemDiff < 0) {
+          color = 'text-rose-400 font-bold';
+          arrow = `<i class="fa-solid fa-arrow-down text-[10px] text-rose-400"></i> ${itemDiff}`;
+        } else {
+          arrow = `<span class="text-slate-400">持平</span>`;
+        }
+
+        return `
+          <div class="bg-slate-800/90 border border-slate-700/70 p-1.5 rounded-lg flex flex-col justify-between">
+            <span class="text-[10px] text-slate-400 font-medium">${it.label}</span>
+            <div class="flex items-baseline justify-between mt-0.5">
+              <span class="font-black text-xs text-white">${it.cScore}</span>
+              <span class="text-[10px] ${color}">${arrow}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function evaluatePeerPosition(computed) {
+      const peers = firefighterRecords.filter(r => r.groupKey === computed.groupKey);
+      const textEl = document.getElementById('cardPeerRankText');
+      if (peers.length === 0) {
+        textEl.textContent = computed.totalScore >= 50 ? "達常模及格基準" : "未達常模基準線";
+        return;
+      }
+      const scores = peers.map(p => p.totalScore).sort((a,b) => a - b);
+      const median = scores[Math.floor(scores.length / 2)];
+      const rank = scores.filter(s => s < computed.totalScore).length;
+      const percentile = Math.round((rank / scores.length) * 100);
+      if (computed.totalScore >= median) {
+        textEl.textContent = `高於同齡組中位數 (約 P${Math.max(50, percentile)})`;
+      } else {
+        textEl.textContent = `低於同齡組中位數 (約 P${Math.min(49, percentile)})`;
+      }
+    }
+
+    function renderRadarChart(person, prevPerson) {
+      const ctx = document.getElementById('radarChart').getContext('2d');
+      const maxScores = [10, 15, 10, 20, 15, 10, 20];
+      const rawScores = [
+        person.scores.jump,
+        person.scores.throw,
+        person.scores.shuttle,
+        person.scores.deadlift,
+        person.scores.hang,
+        person.scores.carry,
+        person.scores.run
+      ];
+      const currentPercent = rawScores.map((score, idx) => Math.round((score / maxScores[idx]) * 100));
+
+      let prevPercent = null;
+      if (prevPerson) {
+        const prevRaw = [
+          prevPerson.scores.jump,
+          prevPerson.scores.throw,
+          prevPerson.scores.shuttle,
+          prevPerson.scores.deadlift,
+          prevPerson.scores.hang,
+          prevPerson.scores.carry,
+          prevPerson.scores.run
+        ];
+        prevPercent = prevRaw.map((score, idx) => Math.round((score / maxScores[idx]) * 100));
+      }
+
+      const peers = firefighterRecords.filter(r => r.groupKey === person.groupKey);
+      let peerAvgPercent = [50, 50, 50, 50, 50, 50, 50];
+      if (peers.length > 0) {
+        const avgRaw = [
+          peers.reduce((s, p) => s + p.scores.jump, 0) / peers.length,
+          peers.reduce((s, p) => s + p.scores.throw, 0) / peers.length,
+          peers.reduce((s, p) => s + p.scores.shuttle, 0) / peers.length,
+          peers.reduce((s, p) => s + p.scores.deadlift, 0) / peers.length,
+          peers.reduce((s, p) => s + p.scores.hang, 0) / peers.length,
+          peers.reduce((s, p) => s + p.scores.carry, 0) / peers.length,
+          peers.reduce((s, p) => s + p.scores.run, 0) / peers.length
+        ];
+        peerAvgPercent = avgRaw.map((avg, idx) => Math.round((avg / maxScores[idx]) * 100));
+      }
+
+      const datasets = [
+        {
+          label: `本次測驗 (${person.session})`,
+          data: currentPercent,
+          backgroundColor: 'rgba(239, 68, 68, 0.25)',
+          borderColor: 'rgba(220, 38, 38, 1)',
+          borderWidth: 2.5,
+          pointBackgroundColor: 'rgba(220, 38, 38, 1)',
+          pointRadius: 4
+        }
+      ];
+
+      const legendHint = document.getElementById('radarLegendHint');
+      if (prevPerson && prevPercent) {
+        datasets.push({
+          label: `前次測驗 (${prevPerson.session})`,
+          data: prevPercent,
+          backgroundColor: 'rgba(59, 130, 246, 0.15)',
+          borderColor: 'rgba(37, 99, 235, 1)',
+          borderWidth: 2,
+          borderDash: [3, 3],
+          pointBackgroundColor: 'rgba(37, 99, 235, 1)',
+          pointRadius: 3
+        });
+        legendHint.innerHTML = '<span class="text-red-600 font-bold">● 本次實測</span> vs <span class="text-blue-600 font-bold">● 前次實測</span>（雙軌重疊比對成長幅度）';
+      } else {
+        datasets.push({
+          label: '同齡常模平均達成率 (%)',
+          data: peerAvgPercent,
+          backgroundColor: 'rgba(148, 163, 184, 0.1)',
+          borderColor: 'rgba(148, 163, 184, 0.8)',
+          borderDash: [4, 4],
+          borderWidth: 1.5,
+          pointRadius: 0
+        });
+        legendHint.innerHTML = '紅線：個人項目達成率(%)；灰虛線：同齡組平均水平';
+      }
+
+      if (radarChartInstance) {
+        radarChartInstance.data.datasets = datasets;
+        radarChartInstance.update();
+        return;
+      }
+
+      radarChartInstance = new Chart(ctx, {
+        type: 'radar',
+        data: {
+          labels: [
+            '跳遠 (10分)',
+            '後拋 (15分)',
+            '折返 (10分)',
+            '硬舉 (20分)',
+            '屈體/懸垂 (15分)',
+            '負重 (10分)',
+            '1500m (20分)'
+          ],
+          datasets: datasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            r: {
+              min: 0,
+              max: 100,
+              ticks: { stepSize: 20, display: false },
+              grid: { color: 'rgba(226, 232, 240, 0.8)' },
+              angleLines: { color: 'rgba(226, 232, 240, 0.8)' },
+              pointLabels: { font: { size: 10, weight: 'bold' }, color: '#475569' }
+            }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    /* ==========================================================================
+       4. 個人 vs 單位 / 年齡層基準對照分析模組
+       ========================================================================== */
+    function handleBenchmarkTypeChange() {
+      const type = document.getElementById('benchmarkTypeSelect').value;
+      const wrapper = document.getElementById('benchmarkTargetWrapper');
+      if (type === 'unit') {
+        wrapper.innerHTML = `
+          <select id="benchmarkSubSelect" onchange="runBenchmarkComparison()" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <option value="ALL">第四大隊全體平均</option>
+            ${currentUnits.map(u => `<option value="${u}">${u} 平均</option>`).join('')}
+          </select>
+        `;
+      } else if (type === 'group') {
+        wrapper.innerHTML = `
+          <select id="benchmarkSubSelect" onchange="runBenchmarkComparison()" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <option value="male_20_29">男性 20~29歲 常模 (甲組)</option>
+            <option value="male_30_39">男性 30~39歲 常模 (乙組)</option>
+            <option value="male_40_49">男性 40~49歲 常模 (丙組)</option>
+            <option value="male_50_plus">男性 50歲以上 常模 (丁組)</option>
+            <option value="female">女性同仁常模 (不分齡)</option>
+          </select>
+        `;
+      } else {
+        wrapper.innerHTML = `
+          <select id="benchmarkSubSelect" onchange="runBenchmarkComparison()" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <option value="50">常模及格基準線 (50分)</option>
+            <option value="60">116年常模新標 (60分)</option>
+          </select>
+        `;
+      }
+      runBenchmarkComparison();
+    }
+
+    function populateBenchmarkPersonSelect() {
+      const sFilter = document.getElementById('benchmarkPersonSessionFilter');
+      if (sFilter) {
+        sFilter.innerHTML = `<option value="ALL">全部梯次期別</option>` +
+          currentSessions.map(s => `<option value="${s}">${s}</option>`).join('');
+      }
+      filterBenchmarkPersonOptions();
+    }
+
+    function filterBenchmarkPersonOptions() {
+      const pSelect = document.getElementById('benchmarkTargetPerson');
+      const sFilterVal = document.getElementById('benchmarkPersonSessionFilter') ? document.getElementById('benchmarkPersonSessionFilter').value : 'ALL';
+
+      let filtered = [...firefighterRecords];
+      if (sFilterVal !== 'ALL') {
+        filtered = filtered.filter(r => r.session === sFilterVal);
+      }
+
+      if (filtered.length === 0) {
+        pSelect.innerHTML = `<option value="">尚無同仁受測紀錄</option>`;
+        return;
+      }
+
+      filtered.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant'));
+      pSelect.innerHTML = filtered.map(r => `
+        <option value="${r.id}">${r.name} - ${r.unit} (${r.age}歲 ${r.gender === 'male' ? '男' : '女'} · ${r.session || '115年'})</option>
+      `).join('');
+
+      runBenchmarkComparison();
+    }
+
+    function runBenchmarkComparison() {
+      const personId = document.getElementById('benchmarkTargetPerson').value;
+      const person = firefighterRecords.find(r => r.id === personId);
+      if (!person) return;
+
+      const pSummary = document.getElementById('benchmarkPersonSummary');
+      pSummary.innerHTML = `受測單位：<b class="text-slate-800">${person.unit}</b> ｜ 年齡性別：<b class="text-slate-800">${person.age}歲 (${person.gender === 'male' ? '男' : '女'})</b> ｜ BMI：<b class="text-slate-800">${person.bmi}</b>`;
+
+      const type = document.getElementById('benchmarkTypeSelect').value;
+      const subVal = document.getElementById('benchmarkSubSelect') ? document.getElementById('benchmarkSubSelect').value : 'ALL';
+      const items = [
+        { label: '立定跳遠', key: 'jump', max: 10 },
+        { label: '後拋擲遠', key: 'throw', max: 15 },
+        { label: '折返跑', key: 'shuttle', max: 10 },
+        { label: '菱形槓硬舉', key: 'deadlift', max: 20 },
+        { label: '懸吊屈體', key: 'hang', max: 15 },
+        { label: '負重行走', key: 'carry', max: 10 },
+        { label: '1500m跑走', key: 'run', max: 20 }
+      ];
+
+      let targetTitle = "";
+      let targetDesc = "";
+      let targetScores = { jump:0, throw:0, shuttle:0, deadlift:0, hang:0, carry:0, run:0 };
+      let targetTotal = 0;
+
+      if (type === 'unit') {
+        const pool = (subVal === 'ALL') ? firefighterRecords : firefighterRecords.filter(r => r.unit === subVal);
+        const count = pool.length;
+        targetTitle = (subVal === 'ALL') ? "第四大隊全體平均" : `${subVal} 全隊平均`;
+        targetDesc = `統計樣本數：${count} 人次`;
+
+        if (count > 0) {
+          targetTotal = (pool.reduce((s, r) => s + r.totalScore, 0) / count).toFixed(1);
+          items.forEach(it => {
+            targetScores[it.key] = (pool.reduce((s, r) => s + r.scores[it.key], 0) / count).toFixed(1);
+          });
+        }
+      } else if (type === 'group') {
+        const pool = firefighterRecords.filter(r => r.groupKey === subVal);
+        const count = pool.length;
+        const groupNames = {
+          male_20_29: "男性 20~29歲 (甲組)",
+          male_30_39: "男性 30~39歲 (乙組)",
+          male_40_49: "男性 40~49歲 (丙組)",
+          male_50_plus: "男性 50歲以上 (丁組)",
+          female: "女性同仁 (不分齡)"
+        };
+        targetTitle = `${groupNames[subVal] || '同齡組'} 平均水準`;
+        targetDesc = `大隊同齡樣本數：${count} 人次`;
+
+        if (count > 0) {
+          targetTotal = (pool.reduce((s, r) => s + r.totalScore, 0) / count).toFixed(1);
+          items.forEach(it => {
+            targetScores[it.key] = (pool.reduce((s, r) => s + r.scores[it.key], 0) / count).toFixed(1);
+          });
+        } else {
+          targetTotal = 50.0;
+          items.forEach(it => { targetScores[it.key] = (it.max * 0.5).toFixed(1); });
+        }
+      } else {
+        targetTitle = "常模合格基準線";
+        targetDesc = "現行標準 50 分 (116年起升為 60 分)";
+        targetTotal = 50.0;
+        items.forEach(it => { targetScores[it.key] = (it.max * 0.5).toFixed(1); });
+      }
+
+      document.getElementById('bmPersonScoreText').textContent = person.totalScore;
+      const pBadge = document.getElementById('bmPersonPassBadge');
+      if (person.isPassed) {
+        pBadge.className = "inline-block mt-1 text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800";
+        pBadge.innerHTML = '<i class="fa-solid fa-check mr-1"></i>測驗合格';
+      } else {
+        pBadge.className = "inline-block mt-1 text-[11px] font-bold px-2 py-0.5 rounded bg-red-100 text-red-800";
+        pBadge.innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-1"></i>未達標';
+      }
+
+      document.getElementById('bmTargetTitleText').textContent = targetTitle;
+      document.getElementById('bmTargetScoreText').textContent = targetTotal;
+      document.getElementById('bmTargetDescText').textContent = targetDesc;
+
+      const diff = (person.totalScore - parseFloat(targetTotal)).toFixed(1);
+      const diffEl = document.getElementById('bmDiffScoreText');
+      const diffDescEl = document.getElementById('bmDiffDescText');
+
+      if (parseFloat(diff) > 0) {
+        diffEl.textContent = `+${diff}`;
+        diffEl.className = "text-3xl font-black text-emerald-600";
+        diffDescEl.textContent = `優於 ${targetTitle} ${Math.abs(diff)} 分 📈`;
+      } else if (parseFloat(diff) < 0) {
+        diffEl.textContent = `${diff}`;
+        diffEl.className = "text-3xl font-black text-red-600";
+        diffDescEl.textContent = `落後 ${targetTitle} ${Math.abs(diff)} 分 📉`;
+      } else {
+        diffEl.textContent = `0.0`;
+        diffEl.className = "text-3xl font-black text-amber-600";
+        diffDescEl.textContent = `與 ${targetTitle} 持平`;
+      }
+
+      document.getElementById('bmLegendPersonLabel').textContent = `${person.name} (${person.totalScore}分)`;
+      document.getElementById('bmLegendTargetLabel').textContent = `${targetTitle} (${targetTotal}分)`;
+
+      const personPct = items.map(it => Math.round((person.scores[it.key] / it.max) * 100));
+      const targetPct = items.map(it => Math.round((parseFloat(targetScores[it.key]) / it.max) * 100));
+      const radarLabels = items.map(it => `${it.label} (${it.max}分)`);
+
+      renderBenchmarkRadar(person.name, targetTitle, personPct, targetPct, radarLabels);
+      renderBenchmarkTable(person, targetTitle, targetScores, items);
+      generateBenchmarkNotes(person, targetTitle, targetScores, items);
+    }
+
+    function renderBenchmarkRadar(personName, targetTitle, personPct, targetPct, labels) {
+      const ctx = document.getElementById('benchmarkRadarChart').getContext('2d');
+
+      const datasets = [
+        {
+          label: personName,
+          data: personPct,
+          backgroundColor: 'rgba(220, 38, 38, 0.25)',
+          borderColor: '#dc2626',
+          borderWidth: 2.5,
+          pointBackgroundColor: '#dc2626',
+          pointRadius: 4
+        },
+        {
+          label: targetTitle,
+          data: targetPct,
+          backgroundColor: 'rgba(37, 99, 235, 0.15)',
+          borderColor: '#2563eb',
+          borderDash: [4, 4],
+          borderWidth: 2,
+          pointBackgroundColor: '#2563eb',
+          pointRadius: 3
+        }
+      ];
+
+      if (benchmarkRadarInstance) {
+        benchmarkRadarInstance.data.datasets = datasets;
+        benchmarkRadarInstance.data.labels = labels;
+        benchmarkRadarInstance.update();
+        return;
+      }
+
+      benchmarkRadarInstance = new Chart(ctx, {
+        type: 'radar',
+        data: { labels: labels, datasets: datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            r: {
+              min: 0,
+              max: 100,
+              ticks: { stepSize: 20, display: false },
+              grid: { color: 'rgba(226, 232, 240, 0.9)' },
+              angleLines: { color: 'rgba(226, 232, 240, 0.9)' },
+              pointLabels: { font: { size: 10, weight: 'bold' }, color: '#475569' }
+            }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    function renderBenchmarkTable(person, targetTitle, targetScores, items) {
+      const table = document.getElementById('benchmarkTable');
+      let html = `
+        <thead class="bg-slate-100 text-slate-700 border-b border-slate-200">
+          <tr>
+            <th class="py-2.5 px-3 font-bold">七項體能測驗項目</th>
+            <th class="py-2.5 px-3 font-bold text-red-600">${person.name} 實測得分</th>
+            <th class="py-2.5 px-3 font-bold text-blue-600">${targetTitle}</th>
+            <th class="py-2.5 px-3 font-bold text-center">單項消長差距</th>
+            <th class="py-2.5 px-3 font-bold text-center">落點表現</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+      `;
+
+      items.forEach(it => {
+        const pScore = person.scores[it.key];
+        const tScore = parseFloat(targetScores[it.key]);
+        const diff = (pScore - tScore).toFixed(1);
+
+        let diffBadge = "";
+        let statusBadge = "";
+
+        if (parseFloat(diff) > 0) {
+          diffBadge = `<span class="text-emerald-600 font-bold">+${diff} 分</span>`;
+          statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">優於基準</span>`;
+        } else if (parseFloat(diff) < 0) {
+          diffBadge = `<span class="text-rose-600 font-bold">${diff} 分</span>`;
+          statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">需加強</span>`;
+        } else {
+          diffBadge = `<span class="text-slate-400 font-bold">持平</span>`;
+          statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">與基準相當</span>`;
+        }
+
+        html += `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="py-2 px-3 font-medium text-slate-700">${it.label} (滿分${it.max}分)</td>
+            <td class="py-2 px-3 font-black text-red-600">${pScore} 分</td>
+            <td class="py-2 px-3 font-bold text-blue-700">${tScore} 分</td>
+            <td class="py-2 px-3 text-center">${diffBadge}</td>
+            <td class="py-2 px-3 text-center">${statusBadge}</td>
+          </tr>
+        `;
+      });
+
+      html += `</tbody>`;
+      table.innerHTML = html;
+    }
+
+    function generateBenchmarkNotes(person, targetTitle, targetScores, items) {
+      const summaryBox = document.getElementById('benchmarkSummaryNotes');
+      let superior = [];
+      let inferior = [];
+
+      items.forEach(it => {
+        const diff = person.scores[it.key] - parseFloat(targetScores[it.key]);
+        if (diff > 0) superior.push({ label: it.label, diff: diff.toFixed(1) });
+        else if (diff < 0) inferior.push({ label: it.label, diff: Math.abs(diff).toFixed(1) });
+      });
+
+      let notes = [];
+      const totalDiff = (person.totalScore - Object.values(targetScores).reduce((a, b) => parseFloat(a) + parseFloat(b), 0)).toFixed(1);
+
+      if (parseFloat(totalDiff) >= 0) {
+        notes.push(`<b>整體戰力評定：</b>【${person.name}】總分 <b>${person.totalScore}分</b>，表現高出【${targetTitle}】達 <b>+${totalDiff}分</b>，戰術基礎扎實。`);
+      } else {
+        notes.push(`<b>整體戰力評定：</b>【${person.name}】總分 <b>${person.totalScore}分</b>，距【${targetTitle}】尚有 <b>${Math.abs(totalDiff)}分</b> 差距，建議依弱項進行週期化訓練。`);
+      }
+
+      if (superior.length > 0) {
+        const topStr = superior.map(s => `${s.label}(+${s.diff})`).join('、');
+        notes.push(`<b>亮點優勢項目：</b>在「${topStr}」顯著優於對照基準，爆發力或核心抗阻能力出色。`);
+      }
+
+      if (inferior.length > 0) {
+        const weakStr = inferior.map(s => `${s.label}(-${s.diff})`).join('、');
+        notes.push(`<b>重點補強建議：</b>在「${weakStr}」尚低於基準水平，建議分隊體能教官針對該項規劃課表強化。`);
+      } else {
+        notes.push(`<b>全面達標：</b>該員在七項測驗中全數達到或超越所選基準！`);
+      }
+
+      summaryBox.innerHTML = notes.map(n => `<p>• ${n}</p>`).join('');
+    }
+
+    /* ==========================================================================
+       5. 儲存與大隊常模統計分析 (支援單項排序與排名計算)
+       ========================================================================== */
+    function saveCurrentRecord() {
+      const record = saveCurrentRecordDataOnly();
+      if (!record) return;
+
+      // 觸發背景非同步同步至 Google 試算表
+      syncSingleRecordToGAS(record);
+      renderStatsTable();
+      updateFormAndCalc();
+    }
+
+    // 僅儲存至本機名冊資料庫（供 submitFitnessData 呼叫，避免重複上傳）
+    function saveCurrentRecordDataOnly() {
+      const name = document.getElementById('inputName').value.trim();
+      if (!name || name === '未填寫') {
+        showToast('請先輸入受測同仁姓名！', 'warning');
+        return null;
+      }
+
+      const unit = document.getElementById('inputUnit').value;
+      const session = document.getElementById('inputSession').value.trim() || '115年上半年';
+      const gender = document.getElementById('inputGender').value;
+      const age = parseInt(document.getElementById('inputAge').value, 10);
+      const runMode = document.getElementById('runModeSelect').value;
+      const runMin = parseInt(document.getElementById('t_run_min').value, 10) || 0;
+      const runSec = parseInt(document.getElementById('t_run_sec').value, 10) || 0;
+      const totalRunSeconds = (runMin * 60) + runSec;
+
+      const newRecord = computeFullRecord({
+        id: 'FF_' + Date.now() + '_' + Math.floor(Math.random()*1000),
+        name: name,
+        unit: unit,
+        session: session,
+        gender: gender,
+        age: age,
+        height: parseFloat(document.getElementById('inputHeight').value) || 170,
+        weight: parseFloat(document.getElementById('inputWeight').value) || 70,
+        jump: parseFloat(document.getElementById('t_jump').value) || 0,
+        throw: parseFloat(document.getElementById('t_throw').value) || 0,
+        shuttle: parseFloat(document.getElementById('t_shuttle').value) || 0,
+        deadlift: parseFloat(document.getElementById('t_deadlift').value) || 0,
+        hang: parseFloat(document.getElementById('t_hang').value) || 0,
+        femalePullupType: gender === 'female' ? document.getElementById('femalePullupType').value : 'rep',
+        carry: parseFloat(document.getElementById('t_carry').value) || 0,
+        runMode: runMode,
+        runSeconds: totalRunSeconds,
+        beepTest: document.getElementById('t_beep').value
+      });
+
+      const existingIdx = firefighterRecords.findIndex(r => r.name === newRecord.name && r.unit === newRecord.unit && r.session === newRecord.session);
+      const previousTest = findPreviousRecord(newRecord.name, newRecord.unit, newRecord.session, null);
+
+      if (existingIdx >= 0) {
+        firefighterRecords[existingIdx] = newRecord;
+        showToast(`已儲存【${newRecord.name}】於【${newRecord.session}】成績！`, 'success');
+      } else {
+        firefighterRecords.push(newRecord);
+        if (previousTest) {
+          const delta = newRecord.totalScore - previousTest.totalScore;
+          if (delta > 0) showToast(`已儲存！【${newRecord.name}】進步 +${delta} 分！📈`, 'success');
+          else if (delta < 0) showToast(`已儲存！【${newRecord.name}】減少 ${Math.abs(delta)} 分。`, 'warning');
+          else showToast(`已儲存！【${newRecord.name}】總分持平。`, 'info');
+        } else {
+          showToast(`已建立【${newRecord.name}】測驗檔案！`, 'success');
+        }
+      }
+
+      return newRecord;
+    }
+
+    function sortTableBy(key) {
+      if (currentSortColumn === key) {
+        isSortDescending = !isSortDescending;
+      } else {
+        currentSortColumn = key;
+        isSortDescending = true;
+      }
+
+      const itemLabels = {
+        totalScore: '總分',
+        age: '年齡',
+        jump: '立定跳遠',
+        throw: '後拋擲遠',
+        shuttle: '折返跑',
+        deadlift: '菱形槓硬舉',
+        hang: '懸吊屈體',
+        carry: '負重行走',
+        run: '1500公尺跑走'
+      };
+
+      const dirText = isSortDescending ? '(高到低)' : '(低到高)';
+      const badge = document.getElementById('currentSortBadge');
+      if (badge) {
+        badge.textContent = `依${itemLabels[key] || key}排序 ${dirText}`;
+      }
+
+      renderStatsTable();
+    }
+
+    function renderStatsTable() {
+      const sessionFilter = document.getElementById('statsFilterSession') ? document.getElementById('statsFilterSession').value : 'ALL';
+      const unitFilter = document.getElementById('statsFilterUnit') ? document.getElementById('statsFilterUnit').value : 'ALL';
+      const groupFilter = document.getElementById('statsFilterGroup') ? document.getElementById('statsFilterGroup').value : 'ALL';
+
+      let list = firefighterRecords.filter(r => {
+        const matchSession = (sessionFilter === 'ALL' || r.session === sessionFilter);
+        const matchUnit = (unitFilter === 'ALL' || r.unit === unitFilter);
+        const matchGroup = (groupFilter === 'ALL' || r.groupKey === groupFilter);
+        return matchSession && matchUnit && matchGroup;
+      });
+
+      list.sort((a, b) => {
+        let valA = 0;
+        let valB = 0;
+
+        if (currentSortColumn === 'totalScore') {
+          valA = a.totalScore;
+          valB = b.totalScore;
+        } else if (currentSortColumn === 'age') {
+          valA = a.age;
+          valB = b.age;
+        } else if (['jump', 'throw', 'shuttle', 'deadlift', 'hang', 'carry', 'run'].includes(currentSortColumn)) {
+          valA = a.scores[currentSortColumn];
+          valB = b.scores[currentSortColumn];
+        }
+
+        return isSortDescending ? (valB - valA) : (valA - valB);
+      });
+
+      const count = list.length;
+      document.getElementById('statCardCount').textContent = `${count} 人次`;
+
+      if (count === 0) {
+        document.getElementById('statCardMean').textContent = '0.0';
+        document.getElementById('statCardStd').textContent = '標準差 (SD): ±0.0';
+        document.getElementById('statCardMedian').textContent = '0.0';
+        document.getElementById('statCardPassRate').textContent = '0%';
+        document.getElementById('statCardPassCount').textContent = '合格 0 / 不合格 0';
+        document.getElementById('recordsTableBody').innerHTML = `
+          <tr>
+            <td colspan="17" class="py-8 text-center text-slate-400">目前尚無符合篩選條件的同仁測驗資料。</td>
+          </tr>
+        `;
+        renderBarChart([]);
+        return;
+      }
+
+      const sum = list.reduce((acc, r) => acc + r.totalScore, 0);
+      const mean = (sum / count).toFixed(1);
+      document.getElementById('statCardMean').textContent = mean;
+
+      const variance = list.reduce((acc, r) => acc + Math.pow(r.totalScore - mean, 2), 0) / count;
+      const std = Math.sqrt(variance).toFixed(1);
+      document.getElementById('statCardStd').textContent = `標準差 (SD): ±${std}`;
+
+      const scoresSorted = list.map(r => r.totalScore).sort((a, b) => a - b);
+      let median = 0;
+      if (count % 2 === 0) {
+        median = ((scoresSorted[count / 2 - 1] + scoresSorted[count / 2]) / 2).toFixed(1);
+      } else {
+        median = scoresSorted[Math.floor(count / 2)].toFixed(1);
+      }
+      document.getElementById('statCardMedian').textContent = median;
+
+      const passCount = list.filter(r => r.isPassed).length;
+      const passRate = Math.round((passCount / count) * 100);
+      document.getElementById('statCardPassRate').textContent = `${passRate}%`;
+      document.getElementById('statCardPassCount').textContent = `合格 ${passCount} / 未達標 ${count - passCount}`;
+
+      const tbody = document.getElementById('recordsTableBody');
+      tbody.innerHTML = list.map((r, index) => {
+        const rank = index + 1;
+        let rankBadge = `<span class="font-bold text-slate-600">${rank}</span>`;
+        if (rank === 1) rankBadge = `<span class="bg-amber-400 text-amber-950 px-2 py-0.5 rounded font-black text-xs">TOP 1</span>`;
+        else if (rank === 2) rankBadge = `<span class="bg-slate-300 text-slate-900 px-2 py-0.5 rounded font-black text-xs">TOP 2</span>`;
+        else if (rank === 3) rankBadge = `<span class="bg-amber-600 text-white px-2 py-0.5 rounded font-black text-xs">TOP 3</span>`;
+
+        const prev = findPreviousRecord(r.name, r.unit, r.session, r.id);
+        let progressHtml = '<span class="text-xs text-slate-400">首次紀錄</span>';
+        if (prev) {
+          const diff = r.totalScore - prev.totalScore;
+          if (diff > 0) {
+            progressHtml = `<span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200"><i class="fa-solid fa-arrow-up text-[10px]"></i> +${diff}</span>`;
+          } else if (diff < 0) {
+            progressHtml = `<span class="text-xs font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200"><i class="fa-solid fa-arrow-down text-[10px]"></i> ${diff}</span>`;
+          } else {
+            progressHtml = `<span class="text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">持平</span>`;
+          }
+        }
+
+        const passBadge = r.isPassed
+          ? `<span class="text-xs font-bold text-emerald-600 flex items-center justify-center gap-1"><i class="fa-solid fa-check"></i>合格</span>`
+          : `<span class="text-xs font-bold text-red-500 flex items-center justify-center gap-1"><i class="fa-solid fa-xmark"></i>未達標</span>`;
+
+        const runDisplay = r.runSeconds ? `${Math.floor(r.runSeconds / 60)}'${(r.runSeconds % 60).toString().padStart(2, '0')}"` : (r.beepTest || '-');
+        const highlightClass = "bg-amber-50 font-bold text-amber-950";
+
+        return `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="py-3 px-3">${rankBadge}</td>
+            <td class="py-3 px-3 font-medium text-slate-700">${r.unit}</td>
+            <td class="py-3 px-3 font-bold text-slate-900">${r.name}</td>
+            <td class="py-3 px-3 text-xs text-slate-600 font-mono">${r.session || '-'}</td>
+            <td class="py-3 px-3 text-slate-600 ${currentSortColumn==='age'?highlightClass:''}">${r.gender === 'male' ? '男' : '女'} / ${r.age}歲</td>
+            <td class="py-3 px-3 text-slate-500">${r.height}cm / ${r.weight}kg</td>
+            <td class="py-3 px-3 text-center ${currentSortColumn==='jump'?highlightClass:''}">${r.jump}cm <span class="text-red-600 font-bold">(${r.scores.jump})</span></td>
+            <td class="py-3 px-3 text-center ${currentSortColumn==='throw'?highlightClass:''}">${r.throw}m <span class="text-red-600 font-bold">(${r.scores.throw})</span></td>
+            <td class="py-3 px-3 text-center ${currentSortColumn==='shuttle'?highlightClass:''}">${r.shuttle}趟 <span class="text-red-600 font-bold">(${r.scores.shuttle})</span></td>
+            <td class="py-3 px-3 text-center ${currentSortColumn==='deadlift'?highlightClass:''}">${r.deadlift}kg <span class="text-red-600 font-bold">(${r.scores.deadlift})</span></td>
+            <td class="py-3 px-3 text-center ${currentSortColumn==='hang'?highlightClass:''}">${r.hang}${r.femalePullupType === 'sec' ? '秒' : '次'} <span class="text-red-600 font-bold">(${r.scores.hang})</span></td>
+            <td class="py-3 px-3 text-center ${currentSortColumn==='carry'?highlightClass:''}">${r.carry}kg <span class="text-red-600 font-bold">(${r.scores.carry})</span></td>
+            <td class="py-3 px-3 text-center ${currentSortColumn==='run'?highlightClass:''}">${runDisplay} <span class="text-red-600 font-bold">(${r.scores.run})</span></td>
+            <td class="py-3 px-3 text-center font-black text-red-600 text-base ${currentSortColumn==='totalScore'?highlightClass:''}">${r.totalScore}</td>
+            <td class="py-3 px-3 text-center">${progressHtml}</td>
+            <td class="py-3 px-3 text-center">${passBadge}</td>
+            <td class="py-3 px-3 text-center">
+              <button onclick="viewPersonReport('${r.id}')" class="text-xs bg-red-50 hover:bg-red-600 hover:text-white text-red-700 px-2.5 py-1 rounded transition font-medium">
+                報告/PDF
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      renderBarChart(list);
+    }
+
+    function renderBarChart(list) {
+      const ctx = document.getElementById('barStatsChart').getContext('2d');
+      const groups = [
+        { key: 'male_20_29', label: '男 20-29歲 (甲組)' },
+        { key: 'male_30_39', label: '男 30-39歲 (乙組)' },
+        { key: 'male_40_49', label: '男 40-49歲 (丙組)' },
+        { key: 'male_50_plus', label: '男 50歲以上 (丁組)' },
+        { key: 'female', label: '女性 (不分齡)' }
+      ];
+
+      const means = [];
+      const medians = [];
+
+      groups.forEach(g => {
+        const pool = list.filter(r => r.groupKey === g.key);
+        if (pool.length === 0) {
+          means.push(0);
+          medians.push(0);
+        } else {
+          const avg = pool.reduce((s, r) => s + r.totalScore, 0) / pool.length;
+          means.push(avg.toFixed(1));
+          const sorted = pool.map(r => r.totalScore).sort((a,b) => a - b);
+          const med = sorted[Math.floor(sorted.length / 2)];
+          medians.push(med);
+        }
+      });
+
+      if (barChartInstance) {
+        barChartInstance.data.datasets[0].data = means;
+        barChartInstance.data.datasets[1].data = medians;
+        barChartInstance.update();
+        return;
+      }
+
+      barChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: groups.map(g => g.label),
+          datasets: [
+            {
+              label: '平均總分 (Mean)',
+              data: means,
+              backgroundColor: 'rgba(220, 38, 38, 0.75)',
+              borderRadius: 6
+            },
+            {
+              label: '中位數 (Median)',
+              data: medians,
+              backgroundColor: 'rgba(245, 158, 11, 0.75)',
+              borderRadius: 6
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { min: 0, max: 100, ticks: { stepSize: 20 } }
+          }
+        }
+      });
+    }
+
+    /* ==========================================================================
+       6. 個人專屬戰術體能評估報告與 PDF 匯出模組
+       ========================================================================== */
+    function populateReportFilters() {
+      const uSelect = document.getElementById('reportFilterUnit');
+      const sSelect = document.getElementById('reportFilterSession');
+      if (uSelect) {
+        uSelect.innerHTML = `<option value="ALL">全部單位</option>` + currentUnits.map(u => `<option value="${u}">${u}</option>`).join('');
+      }
+      if (sSelect) {
+        sSelect.innerHTML = `<option value="ALL">全部梯次</option>` + currentSessions.map(s => `<option value="${s}">${s}</option>`).join('');
+      }
+      filterReportFirefighters();
+    }
+
+    function filterReportFirefighters() {
+      const unitVal = document.getElementById('reportFilterUnit').value;
+      const sessionVal = document.getElementById('reportFilterSession').value;
+      const pSelect = document.getElementById('reportPersonSelect');
+
+      let filtered = [...firefighterRecords];
+      if (unitVal !== 'ALL') filtered = filtered.filter(r => r.unit === unitVal);
+      if (sessionVal !== 'ALL') filtered = filtered.filter(r => r.session === sessionVal);
+
+      if (filtered.length === 0) {
+        pSelect.innerHTML = `<option value="">尚無符合條件同仁</option>`;
+        return;
+      }
+
+      filtered.sort((a,b) => a.name.localeCompare(b.name, 'zh-Hant'));
+      pSelect.innerHTML = filtered.map(r => `
+        <option value="${r.id}">${r.name} (${r.unit} · ${r.session} · ${r.totalScore}分)</option>
+      `).join('');
+
+      renderPersonalReport();
+    }
+
+    function viewPersonReport(id) {
+      switchTab('report');
+      const pSelect = document.getElementById('reportPersonSelect');
+      if (pSelect) {
+        pSelect.value = id;
+        renderPersonalReport();
+      }
+    }
+
+    function renderPersonalReport() {
+      const id = document.getElementById('reportPersonSelect').value;
+      const person = firefighterRecords.find(r => r.id === id);
+      if (!person) return;
+
+      document.getElementById('repDocId').textContent = `FF-${person.session.replace(/[^0-9]/g, '') || '115'}-${person.id.slice(-4)}`;
+      document.getElementById('repSessionText').textContent = person.session;
+      document.getElementById('repName').textContent = person.name;
+      document.getElementById('repUnit').textContent = person.unit;
+      document.getElementById('repGenderAge').textContent = `${person.gender === 'male' ? '男性' : '女性'} / ${person.age}歲`;
+      document.getElementById('repHeightWeight').textContent = `${person.height}cm / ${person.weight}kg`;
+      document.getElementById('repNormGroup').textContent = getNormGroupDisplayName(person.groupKey);
+
+      let bmiDesc = '正常';
+      if (person.bmi < 18.5) bmiDesc = '過輕';
+      else if (person.bmi >= 24 && person.bmi < 27) bmiDesc = '過重';
+      else if (person.bmi >= 27) bmiDesc = '肥胖';
+      document.getElementById('repBMI').textContent = `${person.bmi} (${bmiDesc})`;
+
+      document.getElementById('repTotalScore').textContent = person.totalScore;
+      const passBadge = document.getElementById('repPassBadge');
+      if (person.isPassed) {
+        passBadge.className = "mt-2 text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-center";
+        passBadge.innerHTML = '<i class="fa-solid fa-check mr-1"></i>常規合格 (≥50分)';
+      } else {
+        passBadge.className = "mt-2 text-[11px] font-bold px-2 py-0.5 rounded bg-red-500/20 text-red-300 border border-red-500/30 text-center";
+        passBadge.innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-1"></i>未達標 (<50分)';
+      }
+
+      const sameSessionRecords = firefighterRecords.filter(r => r.session === person.session);
+      const totalPool = sameSessionRecords.length > 0 ? sameSessionRecords : firefighterRecords;
+      const sortedPool = [...totalPool].sort((a,b) => b.totalScore - a.totalScore);
+      const rankIdx = sortedPool.findIndex(r => r.id === person.id) + 1;
+      document.getElementById('repTotalRank').textContent = `第 ${rankIdx} 名`;
+      document.getElementById('repTotalCountText').textContent = `/ 共 ${sortedPool.length} 人`;
+
+      const percentile = Math.round(((sortedPool.length - rankIdx + 1) / sortedPool.length) * 100);
+      document.getElementById('repRankPercentile').textContent = `落點位於全大隊前 ${Math.max(1, 100 - percentile)}% (PR ${percentile})`;
+
+      const peers = totalPool.filter(r => r.groupKey === person.groupKey);
+      if (peers.length > 0) {
+        const peerScores = peers.map(p => p.totalScore).sort((a,b) => a - b);
+        const peerMedian = peerScores[Math.floor(peerScores.length / 2)];
+        const diffPeer = (person.totalScore - peerMedian).toFixed(1);
+        document.getElementById('repPeerDiff').textContent = diffPeer >= 0 ? `+${diffPeer}` : diffPeer;
+        document.getElementById('repPeerMedianText').textContent = `同齡中位數：${peerMedian} 分 (${peers.length}人)`;
+      }
+
+      const prev = findPreviousRecord(person.name, person.unit, person.session, person.id);
+      if (prev) {
+        const diff = person.totalScore - prev.totalScore;
+        document.getElementById('repGrowthScore').textContent = diff >= 0 ? `+${diff}` : diff;
+        document.getElementById('repPrevSessionText').textContent = `前次梯次：${prev.session} (${prev.totalScore}分)`;
+      } else {
+        document.getElementById('repGrowthScore').textContent = "-";
+        document.getElementById('repPrevSessionText').textContent = "初次建檔評測";
+      }
+
+      renderReportItemBreakdown(person, prev, totalPool);
+      renderReportRadar(person, peers);
+      generateReportPrescription(person);
+    }
+
+    function renderReportItemBreakdown(person, prev, pool) {
+      const items = [
+        { key: 'jump', name: '立定跳遠', unit: 'cm', max: 10, val: person.jump },
+        { key: 'throw', name: '後拋擲遠', unit: 'm', max: 15, val: person.throw },
+        { key: 'shuttle', name: '6m30s折返跑', unit: '趟', max: 10, val: person.shuttle },
+        { key: 'deadlift', name: '菱形槓硬舉', unit: 'kg', max: 20, val: person.deadlift },
+        { key: 'hang', name: '懸吊屈體/懸垂', unit: person.femalePullupType === 'sec' ? '秒' : '次', max: 15, val: person.hang },
+        { key: 'carry', name: '負重行走', unit: 'kg', max: 10, val: person.carry },
+        { key: 'run', name: '1500m跑走', unit: '秒', max: 20, val: person.runSeconds ? `${Math.floor(person.runSeconds/60)}'${person.runSeconds%60}"` : person.beepTest }
+      ];
+
+      const tbody = document.getElementById('repItemTableBody');
+      tbody.innerHTML = items.map(it => {
+        const itemScores = pool.map(p => p.scores[it.key]).sort((a,b) => b - a);
+        const itemRank = itemScores.findIndex(s => s <= person.scores[it.key]) + 1;
+
+        let deltaHtml = '<span class="text-slate-400">-</span>';
+        if (prev) {
+          const delta = person.scores[it.key] - prev.scores[it.key];
+          if (delta > 0) deltaHtml = `<span class="text-emerald-600 font-bold">+${delta}分</span>`;
+          else if (delta < 0) deltaHtml = `<span class="text-rose-600 font-bold">${delta}分</span>`;
+          else deltaHtml = `<span class="text-slate-500 font-medium">持平</span>`;
+        }
+
+        const pct = Math.round((person.scores[it.key] / it.max) * 100);
+
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="py-2 px-3 font-semibold text-slate-800">${it.name} <span class="text-slate-400 text-[10px]">(${it.max}分)</span></td>
+            <td class="py-2 px-2 text-center font-bold text-slate-700">${it.val} ${it.unit}</td>
+            <td class="py-2 px-2 text-center font-black text-red-600">${person.scores[it.key]} 分</td>
+            <td class="py-2 px-2 text-center font-medium text-slate-700">第 ${itemRank} 名</td>
+            <td class="py-2 px-2 text-center">${deltaHtml}</td>
+            <td class="py-2 px-2 text-center">
+              <div class="flex items-center justify-center gap-1.5">
+                <div class="w-12 bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                  <div class="bg-red-600 h-full rounded-full" style="width: ${pct}%"></div>
+                </div>
+                <span class="text-[10px] text-slate-500 font-mono">${pct}%</span>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderReportRadar(person, peers) {
+      const ctx = document.getElementById('reportRadarChart').getContext('2d');
+      const personPct = [
+        Math.round((person.scores.jump / 10) * 100),
+        Math.round((person.scores.throw / 15) * 100),
+        Math.round((person.scores.shuttle / 10) * 100),
+        Math.round((person.scores.deadlift / 20) * 100),
+        Math.round((person.scores.hang / 15) * 100),
+        Math.round((person.scores.carry / 10) * 100),
+        Math.round((person.scores.run / 20) * 100)
+      ];
+
+      let peerAvgPct = [60, 60, 60, 60, 60, 60, 60];
+      if (peers && peers.length > 0) {
+        peerAvgPct = [
+          Math.round((peers.reduce((s, p) => s + p.scores.jump, 0) / peers.length / 10) * 100),
+          Math.round((peers.reduce((s, p) => s + p.scores.throw, 0) / peers.length / 15) * 100),
+          Math.round((peers.reduce((s, p) => s + p.scores.shuttle, 0) / peers.length / 10) * 100),
+          Math.round((peers.reduce((s, p) => s + p.scores.deadlift, 0) / peers.length / 20) * 100),
+          Math.round((peers.reduce((s, p) => s + p.scores.hang, 0) / peers.length / 15) * 100),
+          Math.round((peers.reduce((s, p) => s + p.scores.carry, 0) / peers.length / 10) * 100),
+          Math.round((peers.reduce((s, p) => s + p.scores.run, 0) / peers.length / 20) * 100)
+        ];
+      }
+
+      const datasets = [
+        {
+          label: '受測同仁實測 (%)',
+          data: personPct,
+          backgroundColor: 'rgba(220, 38, 38, 0.25)',
+          borderColor: '#dc2626',
+          borderWidth: 2,
+          pointBackgroundColor: '#dc2626',
+          pointRadius: 3
+        },
+        {
+          label: '大隊同齡平均 (%)',
+          data: peerAvgPct,
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          borderColor: '#3b82f6',
+          borderDash: [3, 3],
+          borderWidth: 1.5,
+          pointBackgroundColor: '#3b82f6',
+          pointRadius: 2
+        }
+      ];
+
+      if (reportRadarInstance) {
+        reportRadarInstance.data.datasets = datasets;
+        reportRadarInstance.update();
+        return;
+      }
+
+      reportRadarInstance = new Chart(ctx, {
+        type: 'radar',
+        data: {
+          labels: ['跳遠', '後拋', '折返', '硬舉', '屈體', '負重', '1500m'],
+          datasets: datasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            r: {
+              min: 0,
+              max: 100,
+              ticks: { display: false, stepSize: 25 },
+              pointLabels: { font: { size: 10, weight: 'bold' }, color: '#334155' }
+            }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    function generateReportPrescription(person) {
+      const container = document.getElementById('repPrescriptionNotes');
+      const weakItems = [];
+      const strongItems = [];
+
+      const itemDefs = [
+        { key: 'jump', label: '立定跳遠', max: 10, tip: '加強下肢垂直剛性與增強式跳躍 (Plyometrics) 訓練' },
+        { key: 'throw', label: '後拋擲遠', max: 15, tip: '加強背側動力鏈 (胸椎伸展、臀大肌與大圓肌後拋發力)' },
+        { key: 'shuttle', label: '折返跑', max: 10, tip: '強化下肢煞車減速、側向變向推進力與敏捷繩梯階梯衝刺' },
+        { key: 'deadlift', label: '菱形槓硬舉', max: 20, tip: '週期化最大肌力課表 (75-85% 1RM 漸進式超負荷)' },
+        { key: 'hang', label: '懸吊屈體/懸垂', max: 15, tip: '強化前臂指握力、背闊肌下拉、以及下腹核心捲腹肌耐力' },
+        { key: 'carry', label: '負重行走', max: 10, tip: '進行農夫走路 (Farmer Walk)、抗側屈核心穩定與斜方肌支撐' },
+        { key: 'run', label: '1500m跑走', max: 20, tip: '安排 Zone 2 低心率有氧打底＋高強度間歇跑 (HIIT / TABATA)' }
+      ];
+
+      itemDefs.forEach(def => {
+        const scorePct = person.scores[def.key] / def.max;
+        if (scorePct >= 0.75) strongItems.push(def.label);
+        else if (scorePct < 0.5) weakItems.push(def);
+      });
+
+      let advice = [];
+      advice.push(`<b>整體作戰體能評估：</b>本梯次總得分 <b>${person.totalScore} 分</b>，戰術體能狀態評定為【${person.isPassed ? '合格具備外勤戰術任務肌耐力' : '未達常模基準線，需強化特定體適能'}】。`);
+
+      if (strongItems.length > 0) {
+        advice.push(`<b>強項戰術優勢：</b>同仁於「<b>${strongItems.join('、')}</b>」表現出色，爆發力與基礎體能扎實。`);
+      }
+
+      if (weakItems.length > 0) {
+        advice.push(`<b>分隊體能教官加強建議（針對待補強單項）：</b>`);
+        weakItems.forEach(w => {
+          advice.push(`• <b>${w.label} (目前得分 ${person.scores[w.key]}/${w.max})：</b>${w.tip}。`);
+        });
+      } else {
+        advice.push(`<b>均衡發展：</b>七項戰術體能皆達到良好基準，建議維持規律週期訓練，預防運動傷害。`);
+      }
+
+      container.innerHTML = advice.map(a => `<p>${a}</p>`).join('');
+    }
+
+    function printPersonalReport() {
+      window.print();
+    }
+
+    /* ==========================================================================
+       7. Excel 批次作業與 20 單位名冊維護
+       ========================================================================== */
+    function downloadExcelTemplate() {
+      const templateData = [
+        {
+          "單位": "第四大隊大同分隊",
+          "姓名": "王小明",
+          "測驗期別": "115年上半年",
+          "性別(男/女)": "男",
+          "年齡": 27,
+          "身高(cm)": 175,
+          "體重(kg)": 72,
+          "立定跳遠(cm)": 230,
+          "後拋擲遠(m)": 10,
+          "折返跑(趟)": 13,
+          "菱形槓硬舉(kg)": 90,
+          "懸吊屈體(次或女性秒)": 7,
+          "負重行走(kg)": 120,
+          "1500m跑走(秒數或分:秒)": "8:20"
+        },
+        {
+          "單位": "第四大隊大同分隊",
+          "姓名": "王小明",
+          "測驗期別": "115年下半年",
+          "性別(男/女)": "男",
+          "年齡": 27,
+          "身高(cm)": 175,
+          "體重(kg)": 71,
+          "立定跳遠(cm)": 245,
+          "後拋擲遠(m)": 12,
+          "折返跑(趟)": 14,
+          "菱形槓硬舉(kg)": 110,
+          "懸吊屈體(次或女性秒)": 10,
+          "負重行走(kg)": 140,
+          "1500m跑走(秒數或分:秒)": "7:45"
+        }
+      ];
+
+      const ws = XLSX.utils.json_to_sheet(templateData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "體測批次匯入範本");
+      XLSX.writeFile(wb, "第四大隊消防體能測驗批次匯入範本.xlsx");
+      showToast("已下載 Excel 範本！", "info");
+    }
+
+    function handleExcelUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      document.getElementById('importStatusText').textContent = `正在讀取 ${file.name}...`;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(firstSheet);
+
+          if (!rows || rows.length === 0) {
+            showToast("檔案中無資料列！", "warning");
+            document.getElementById('importStatusText').textContent = "檔案無內容";
+            return;
+          }
+
+          let addedCount = 0;
+          rows.forEach((row, idx) => {
+            const name = (row['姓名'] || row['Name'] || '').toString().trim();
+            if (!name) return;
+
+            const unit = (row['單位'] || row['Unit'] || currentUnits[0]).toString().trim();
+            const session = (row['測驗期別'] || row['期別'] || row['梯次'] || '115年上半年').toString().trim();
+            if (session && !currentSessions.includes(session)) currentSessions.push(session);
+
+            const rawGender = (row['性別(男/女)'] || row['性別'] || '男').toString().trim();
+            const gender = (rawGender === '女' || rawGender.toLowerCase() === 'female') ? 'female' : 'male';
+            const age = parseInt(row['年齡'] || row['Age'] || 30, 10);
+            const height = parseFloat(row['身高(cm)'] || row['身高'] || 170);
+            const weight = parseFloat(row['體重(kg)'] || row['體重'] || 70);
+
+            let runSeconds = 500;
+            const runVal = (row['1500m跑走(秒數或分:秒)'] || row['1500m跑走'] || row['跑步'] || '').toString().trim();
+            if (runVal.includes(':')) {
+              const p = runVal.split(':');
+              runSeconds = (parseInt(p[0], 10) * 60) + parseInt(p[1], 10);
+            } else if (!isNaN(parseFloat(runVal)) && parseFloat(runVal) > 0) {
+              runSeconds = parseFloat(runVal);
+            }
+
+            const record = computeFullRecord({
+              id: 'BATCH_' + Date.now() + '_' + idx,
+              name: name,
+              unit: unit,
+              session: session,
+              gender: gender,
+              age: age,
+              height: height,
+              weight: weight,
+              jump: parseFloat(row['立定跳遠(cm)'] || row['立定跳遠'] || 0),
+              throw: parseFloat(row['後拋擲遠(m)'] || row['後拋擲遠'] || 0),
+              shuttle: parseFloat(row['折返跑(趟)'] || row['折返跑'] || 0),
+              deadlift: parseFloat(row['菱形槓硬舉(kg)'] || row['菱形槓硬舉'] || 0),
+              hang: parseFloat(row['懸吊屈體(次或女性秒)'] || row['懸吊屈體'] || 0),
+              femalePullupType: gender === 'female' ? 'sec' : 'rep',
+              carry: parseFloat(row['負重行走(kg)'] || row['負重行走'] || 0),
+              runMode: 'time',
+              runSeconds: runSeconds,
+              beepTest: ''
+            });
+
+            const existingIdx = firefighterRecords.findIndex(r => r.name === record.name && r.unit === record.unit && r.session === record.session);
+            if (existingIdx >= 0) firefighterRecords[existingIdx] = record;
+            else firefighterRecords.push(record);
+            addedCount++;
+          });
+
+          refreshSessionDataList();
+          document.getElementById('importStatusText').textContent = `成功匯入 ${addedCount} 筆同仁體測資料！`;
+          showToast(`成功匯入 ${addedCount} 筆同仁體測資料！已自動完成換算`, "success");
+          renderStatsTable();
+          switchTab('stats');
+        } catch (err) {
+          console.error(err);
+          showToast("匯入失敗，請確認檔案格式是否正確", "warning");
+          document.getElementById('importStatusText').textContent = "讀取發生錯誤";
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function exportCurrentTableToExcel() {
+      if (firefighterRecords.length === 0) {
+        showToast("目前尚無資料可匯出！", "warning");
+        return;
+      }
+
+      const exportData = firefighterRecords.map((r, i) => {
+        const prev = findPreviousRecord(r.name, r.unit, r.session, r.id);
+        const delta = prev ? (r.totalScore - prev.totalScore) : 0;
+        const progressDesc = prev ? (delta >= 0 ? `+${delta}分` : `${delta}分`) : '首次紀錄';
+
+        return {
+          "排名": i + 1,
+          "單位": r.unit,
+          "姓名": r.name,
+          "測驗期別": r.session || '',
+          "性別": r.gender === 'male' ? '男' : '女',
+          "年齡": r.age,
+          "BMI": r.bmi,
+          "立定跳遠(cm)": r.jump,
+          "立定跳遠得分": r.scores.jump,
+          "後拋擲遠(m)": r.throw,
+          "後拋擲遠得分": r.scores.throw,
+          "折返跑(趟)": r.shuttle,
+          "折返跑得分": r.scores.shuttle,
+          "硬舉(kg)": r.deadlift,
+          "硬舉得分": r.scores.deadlift,
+          "懸吊屈體/懸垂": r.hang,
+          "屈體懸垂得分": r.scores.hang,
+          "負重行走(kg)": r.carry,
+          "負重行走得分": r.scores.carry,
+          "1500m秒數": r.runSeconds,
+          "1500m得分": r.scores.run,
+          "總分": r.totalScore,
+          "相較前次消長": progressDesc,
+          "常模判定": r.isPassed ? "合格" : "未達標"
+        };
+      });
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "同仁常訓成績統計");
+      XLSX.writeFile(wb, `第四大隊體測統計總表_${new Date().toISOString().slice(0,10)}.xlsx`);
+      showToast("已成功匯出 Excel 報表！", "success");
+    }
+
+    function loadSample400Data() {
+      const familyNames = ["陳", "林", "黃", "張", "李", "王", "吳", "劉", "蔡", "楊", "許", "鄭", "謝", "郭", "洪", "曾", "邱", "廖", "賴", "周"];
+      const givenNames = ["建宏", "志明", "冠宇", "家豪", "俊傑", "宗憲", "政廷", "子軒", "廷威", "欣怡", "雅婷", "佩君", "嘉玲", "雅雯", "心儀", "承翰", "宇翔", "柏翰", "冠廷", "品睿"];
+
+      for (let i = 0; i < 30; i++) {
+        const name = familyNames[i % familyNames.length] + givenNames[(i * 3) % givenNames.length];
+        const unit = currentUnits[i % currentUnits.length];
+        const isFemale = (i % 6 === 0);
+        const gender = isFemale ? 'female' : 'male';
+        const age = 22 + (i % 36);
+
+        let jump1 = isFemale ? 150 + (i % 30) : 190 + (i % 55);
+        let throwDist1 = isFemale ? 5.5 + (i % 5) : 8.0 + (i % 6);
+        let shuttle1 = isFemale ? 8 + (i % 4) : 11 + (i % 4);
+        let deadlift1 = isFemale ? 40 + (i % 25) : 70 + (i % 60);
+        let hang1 = isFemale ? 18 + (i % 12) : 2 + (i % 10);
+        let carry1 = isFemale ? 60 + (i % 35) : 90 + (i % 50);
+        let runSec1 = isFemale ? 610 - (i % 60) : 490 - (i % 90);
+
+        const rec1 = computeFullRecord({
+          id: 'SAMPLE_S1_' + i,
+          name: name,
+          unit: unit,
+          session: '115年上半年',
+          gender: gender,
+          age: age,
+          height: isFemale ? 163 : 176,
+          weight: isFemale ? 55 : 74,
+          jump: jump1,
+          throw: throwDist1,
+          shuttle: shuttle1,
+          deadlift: deadlift1,
+          hang: hang1,
+          femalePullupType: isFemale ? 'sec' : 'rep',
+          carry: carry1,
+          runMode: 'time',
+          runSeconds: runSec1,
+          beepTest: ''
+        });
+        firefighterRecords.push(rec1);
+
+        let jump2 = jump1 + (i % 4 === 0 ? -5 : 10 + (i % 15));
+        let throwDist2 = throwDist1 + (i % 4 === 0 ? -0.5 : 1.2);
+        let shuttle2 = shuttle1 + (i % 5 === 0 ? 0 : 1);
+        let deadlift2 = deadlift1 + (i % 3 === 0 ? 15 : 10);
+        let hang2 = hang1 + (i % 3 === 0 ? 2 : 1);
+        let carry2 = carry1 + 10;
+        let runSec2 = Math.max(330, runSec1 - 25);
+
+        const rec2 = computeFullRecord({
+          id: 'SAMPLE_S2_' + i,
+          name: name,
+          unit: unit,
+          session: '115年下半年',
+          gender: gender,
+          age: age,
+          height: isFemale ? 163 : 176,
+          weight: isFemale ? 54 : 73,
+          jump: jump2,
+          throw: parseFloat(throwDist2.toFixed(1)),
+          shuttle: shuttle2,
+          deadlift: deadlift2,
+          hang: hang2,
+          femalePullupType: isFemale ? 'sec' : 'rep',
+          carry: carry2,
+          runMode: 'time',
+          runSeconds: runSec2,
+          beepTest: ''
+        });
+        firefighterRecords.push(rec2);
+      }
+
+      showToast("已成功載入兩期（115上半年及下半年）示範測驗資料！", "success");
+      renderStatsTable();
+    }
+
+    function populateUnitDropdowns() {
+      const selectSingle = document.getElementById('inputUnit');
+      const selectStats = document.getElementById('statsFilterUnit');
+      const customInput = document.getElementById('customUnitsInput');
+
+      if (customInput) customInput.value = currentUnits.join(', ');
+
+      if (selectSingle) {
+        selectSingle.innerHTML = currentUnits.map(u => `<option value="${u}">${u}</option>`).join('');
+      }
+      if (selectStats) {
+        selectStats.innerHTML = `<option value="ALL">全部單位 (第四大隊全體)</option>` + 
+          currentUnits.map(u => `<option value="${u}">${u}</option>`).join('');
+      }
+      
+      refreshSessionDataList();
+    }
+
+    function saveCustomUnits() {
+      const val = document.getElementById('customUnitsInput').value.trim();
+      if (!val) return;
+      const list = val.split(/[,，\n]/).map(s => s.trim()).filter(s => s.length > 0);
+      if (list.length === 0) return;
+      currentUnits = list;
+      populateUnitDropdowns();
+      showToast(`已成功更新 ${currentUnits.length} 個單位選單！`, "success");
+    }
+
+    function resetDefaultUnits() {
+      currentUnits = [...DEFAULT_UNITS];
+      populateUnitDropdowns();
+      showToast("已回復預設20個第四大隊消防分隊與單位！", "info");
+    }
+
+    function resetCurrentForm() {
+      document.getElementById('inputName').value = '';
+      document.getElementById('t_jump').value = 0;
+      document.getElementById('t_throw').value = 0;
+      document.getElementById('t_shuttle').value = 0;
+      document.getElementById('t_deadlift').value = 0;
+      document.getElementById('t_hang').value = 0;
+      document.getElementById('t_carry').value = 0;
+      document.getElementById('t_run_min').value = 0;
+      document.getElementById('t_run_sec').value = 0;
+      document.getElementById('t_beep').value = '';
+      updateFormAndCalc();
+      showToast('已清空輸入欄位。', 'info');
+    }
+
+    /* ==========================================================================
+       8. Google Apps Script (GAS) 雲端 API 串接模組
+       支援 GitHub Pages 跨域串接 (支援標準 Fetch 與 JSONP 雙軌自動降級備援)
+       ========================================================================== */
+    
+    // JSONP 輔助呼叫函式：完全不受瀏覽器 CORS 跨域限制
+    function fetchGASViaJSONP(urlWithParams) {
+      return new Promise((resolve, reject) => {
+        const callbackName = 'gas_callback_' + Math.round(100000 * Math.random());
+        const script = document.createElement('script');
+        
+        const timeout = setTimeout(() => {
+          cleanup();
+          reject(new Error('JSONP 連線逾時，請確認 Google Apps Script 已部署為新版本且誰可以存取設為 Anyone'));
+        }, 12000);
+
+        function cleanup() {
+          if (script.parentNode) script.parentNode.removeChild(script);
+          delete window[callbackName];
+          clearTimeout(timeout);
+        }
+
+        window[callbackName] = function(data) {
+          cleanup();
+          resolve(data);
+        };
+
+        const delimiter = urlWithParams.includes('?') ? '&' : '?';
+        script.src = `${urlWithParams}${delimiter}callback=${callbackName}&_t=${Date.now()}`;
+        script.onerror = function() {
+          cleanup();
+          reject(new Error('無法載入 Google 腳本，請確認 Apps Script 部署設定'));
+        };
+
+        document.head.appendChild(script);
+      });
+    }
+
+    async function testGASConnection() {
+      const dot = document.getElementById('gasStatusDot');
+      const targetUrl = getGasUrl();
+      showToast("正在連線 Google Apps Script 後端...", "info");
+      if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 inline-block animate-ping";
+
+      try {
+        let res;
+        try {
+          const resp = await fetch(`${targetUrl}?action=ping&_t=${Date.now()}`, {
+            method: "GET",
+            mode: "cors",
+            redirect: "follow"
+          });
+          if (resp.ok) {
+            res = await resp.json();
+          } else {
+            throw new Error("HTTP Status " + resp.status);
+          }
+        } catch (fetchErr) {
+          console.warn("標準 fetch 失敗，自動切換至第二軌 JSONP 跨域通道...", fetchErr);
+          res = await fetchGASViaJSONP(`${targetUrl}?action=ping`);
+        }
+
+        if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block";
+        showToast(res.message || "Google Apps Script 雲端連線正常，任何人均可存取！", "success");
+      } catch (err) {
+        console.warn("GAS Ping Exception:", err);
+        if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-rose-400 inline-block";
+        showToast("連線未成功：" + (err.message || "請確認已在 Apps Script 點擊 testRun 授權並發布新版本"), "warning");
+      }
+    }
+
+    // 從 Google Apps Script 拉取所有同仁測驗資料 (GET，支援雙軌跨域)
+    async function syncDataFromGAS() {
+      const dot = document.getElementById('gasStatusDot');
+      const targetUrl = getGasUrl();
+      showToast("正在從 Google 試算表拉取體測資料庫...", "info");
+      if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 inline-block animate-spin";
+
+      try {
+        let data;
+        try {
+          data = await fetchGASViaJSONP(`${targetUrl}?action=getAll`);
+        } catch (jsonpErr) {
+          console.warn("JSONP 失敗，改嘗試標準 fetch...", jsonpErr);
+          const resp = await fetch(`${targetUrl}?action=getAll&_t=${Date.now()}`, {
+            method: "GET",
+            mode: "cors",
+            redirect: "follow"
+          });
+          if (resp.ok) {
+            data = await resp.json();
+          } else {
+            throw new Error("HTTP " + resp.status);
+          }
+        }
+
+        if (data && data.status === "error") {
+          throw new Error(data.error || "後端執行錯誤");
+        }
+
+        if (Array.isArray(data) && data.length > 0) {
+          let count = 0;
+          data.forEach((row, idx) => {
+            if (!row.name) return;
+
+            let runSeconds = 500;
+            if (typeof row.runSeconds === 'string' && (row.runSeconds.includes('分') || row.runSeconds.includes(':'))) {
+              const parts = row.runSeconds.replace('秒', '').split(/[分:]/);
+              runSeconds = (parseInt(parts[0], 10) || 0) * 60 + (parseInt(parts[1], 10) || 0);
+            } else if (!isNaN(parseFloat(row.runSeconds)) && parseFloat(row.runSeconds) > 0) {
+              runSeconds = parseInt(row.runSeconds, 10);
+            }
+
+            const computed = computeFullRecord({
+              id: row.id || ('GAS_' + Date.now() + '_' + idx),
+              name: row.name,
+              unit: row.unit || currentUnits[0],
+              session: row.session || '115年上半年',
+              gender: (row.gender === 'female' || row.gender === '女') ? 'female' : 'male',
+              age: parseInt(row.age || 28, 10),
+              height: parseFloat(row.height || 170),
+              weight: parseFloat(row.weight || 70),
+              jump: parseFloat(row.jump || 0),
+              throw: parseFloat(row.throw || 0),
+              shuttle: parseFloat(row.shuttle || 0),
+              deadlift: parseFloat(row.deadlift || 0),
+              hang: parseFloat(row.hang || 0),
+              femalePullupType: row.femalePullupType || 'rep',
+              carry: parseFloat(row.carry || 0),
+              runMode: row.runMode || 'time',
+              runSeconds: runSeconds,
+              beepTest: row.beepTest || ''
+            });
+
+            if (computed.session && !currentSessions.includes(computed.session)) {
+              currentSessions.push(computed.session);
+            }
+
+            const existingIdx = firefighterRecords.findIndex(r => r.name === computed.name && r.unit === computed.unit && r.session === computed.session);
+            if (existingIdx >= 0) firefighterRecords[existingIdx] = computed;
+            else firefighterRecords.push(computed);
+            count++;
+          });
+
+          refreshSessionDataList();
+          if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block";
+          showToast(`成功從 Google 試算表同步 ${count} 筆同仁體測資料！`, "success");
+          renderStatsTable();
+          updateFormAndCalc();
+        } else {
+          if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-blue-400 inline-block";
+          showToast("Google 試算表目前尚無資料列，已準備好接收新測驗！", "info");
+        }
+      } catch (err) {
+        console.error("GAS Fetch Error:", err);
+        if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-red-400 inline-block";
+        showToast("雲端讀取失敗：" + (err.message || "請檢查 Apps Script 設定"), "warning");
+      }
+    }
+
+    // 將單筆測驗成績同步傳送至 GAS 雲端 (POST)
+    async function syncSingleRecordToGAS(record) {
+      const targetUrl = getGasUrl();
+      try {
+        await fetch(targetUrl, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            action: "saveOne",
+            record: record
+          })
+        });
+        console.log(`[GAS] 已將 ${record.name} 之測驗紀錄同步至試算表`);
+      } catch (err) {
+        console.warn("[GAS] 單筆同步背景作業例外:", err);
+      }
+    }
+
+    // 點擊「送出成績至試算表」按鈕時執行的送出函式
+    async function submitFitnessData() {
+      const submitBtn = document.getElementById("submitBtn");
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> 資料上傳中...';
+      }
+
+      const record = saveCurrentRecordDataOnly();
+      if (!record) {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane mr-1"></i> 送出成績至試算表';
+        }
+        return;
+      }
+
+      const unit = record.unit;
+      const name = record.name;
+      const period = record.session;
+      const gender = record.gender === 'female' ? '女' : '男';
+      const age = record.age;
+      const bmi = record.bmi;
+
+      const jumpDistance = record.jump;
+      const jumpScore = record.scores.jump;
+      const throwDistance = record.throw;
+      const throwScore = record.scores.throw;
+      const shuttleRun = record.shuttle;
+      const shuttleScore = record.scores.shuttle;
+      const deadlift = record.deadlift;
+      const deadliftScore = record.scores.deadlift;
+      const pullUp = record.hang;
+      const pullUpScore = record.scores.hang;
+      const farmersWalk = record.carry;
+      const farmersWalkScore = record.scores.carry;
+      
+      const runMode = record.runMode;
+      const runMin = Math.floor(record.runSeconds / 60);
+      const runSec = record.runSeconds % 60;
+      const run1500mTime = runMode === 'beep' ? (record.beepTest || "") : `${runMin}分${runSec.toString().padStart(2, '0')}秒`;
+      const run1500mScore = record.scores.run;
+      const totalScore = record.totalScore;
+      
+      const prevRecord = findPreviousRecord(name, unit, period, record.id);
+      let progress = "首次紀錄";
+      if (prevRecord) {
+        const diff = totalScore - prevRecord.totalScore;
+        progress = diff > 0 ? `+${diff}分` : (diff < 0 ? `${diff}分` : "持平");
+      }
+
+      const evaluation = record.isPassed ? "合格" : "未達標";
+
+      const payload = {
+        action: "saveOne",
+        rank: "",
+        unit: unit,
+        name: name,
+        period: period,
+        gender: gender,
+        age: age,
+        bmi: bmi,
+        jumpDistance: jumpDistance,
+        jumpScore: jumpScore,
+        throwDistance: throwDistance,
+        throwScore: throwScore,
+        shuttleRun: shuttleRun,
+        shuttleScore: shuttleScore,
+        deadlift: deadlift,
+        deadliftScore: deadliftScore,
+        pullUp: pullUp,
+        pullUpScore: pullUpScore,
+        farmersWalk: farmersWalk,
+        farmersWalkScore: farmersWalkScore,
+        run1500mTime: run1500mTime,
+        runSeconds: record.runSeconds,
+        run1500mScore: run1500mScore,
+        totalScore: totalScore,
+        progress: progress,
+        evaluation: evaluation
+      };
+
+      try {
+        const targetUrl = getGasUrl();
+        await fetch(targetUrl, {
+          method: "POST",
+          mode: "no-cors",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        showToast("✅ 成績已成功儲存並同步至 Google 試算表！", "success");
+        renderStatsTable();
+        updateFormAndCalc();
+      } catch (err) {
+        console.error("上傳失敗：", err);
+        showToast("❌ 上傳失敗，請檢查網路連線或 Apps Script 部署狀態。", "warning");
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane mr-1"></i> 送出成績至試算表';
+        }
+      }
+    }
+
+    // 將目前記憶體資料庫全數推送到 Google Apps Script (POST)
+    async function pushAllDataToGAS() {
+      if (firefighterRecords.length === 0) {
+        showToast("目前本機尚無任何測驗資料可同步！", "warning");
+        return;
+      }
+
+      showToast(`正在推送全數 ${firefighterRecords.length} 筆資料至 Google 試算表...`, "info");
+      const dot = document.getElementById('gasStatusDot');
+      const targetUrl = getGasUrl();
+      if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 inline-block animate-pulse";
+
+      try {
+        await fetch(targetUrl, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            action: "syncAll",
+            records: firefighterRecords
+          })
+        });
+
+        if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block";
+        showToast(`同步指令已送出！${firefighterRecords.length} 筆名冊已全量備份至 Google 試算表。`, "success");
+      } catch (err) {
+        console.error("GAS Push Error:", err);
+        if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-red-400 inline-block";
+        showToast("同步過程發生異常，請檢查網路連線或稍後再試。", "warning");
+      }
+    }
+
+    function fillSampleRecord() {
+      document.getElementById('inputName').value = '陳建宏';
+      document.getElementById('inputUnit').value = '第四大隊劍潭分隊';
+      document.getElementById('inputSession').value = '115年上半年';
+      document.getElementById('inputGender').value = 'male';
+      document.getElementById('inputAge').value = 27;
+      document.getElementById('inputHeight').value = 178;
+      document.getElementById('inputWeight').value = 74;
+      document.getElementById('t_jump').value = 245;
+      document.getElementById('t_throw').value = 14.5;
+      document.getElementById('t_shuttle').value = 14;
+      document.getElementById('t_deadlift').value = 135;
+      document.getElementById('t_hang').value = 12;
+      document.getElementById('t_carry').value = 145;
+      document.getElementById('t_run_min').value = 7;
+      document.getElementById('t_run_sec').value = 15;
+      calculateBMI();
+      updateFormAndCalc();
+      showToast('已帶入陳建宏同仁示範成績！', 'success');
+    }
+
+    function showToast(msg, type = 'success') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMsg');
+      const toastIcon = document.getElementById('toastIcon');
+
+      toastMsg.textContent = msg;
+      if (type === 'success') toastIcon.className = "fa-solid fa-circle-check text-emerald-400 text-lg";
+      else if (type === 'warning') toastIcon.className = "fa-solid fa-triangle-exclamation text-amber-400 text-lg";
+      else toastIcon.className = "fa-solid fa-circle-info text-blue-400 text-lg";
+
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 3000);
+    }
+
+    window.onload = function() {
+      populateUnitDropdowns();
+      calculateBMI();
+      loadSample400Data();
+      updateFormAndCalc();
+      switchTab('single');
+    };
+  </script>
+</body>
+</html>
